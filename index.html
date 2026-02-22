@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Code Tester</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4 py-3">
+      <div class="container-fluid">
+        <a class="navbar-brand d-flex align-items-center" href="#">
+            <i class="bi bi-file-earmark-code-fill fs-3 me-2 text-warning"></i>
+            Python Code Tester 
+            <span class="fs-6 text-light opacity-75 ms-3 fw-normal" style="letter-spacing: normal;">
+                ¬beny_karachun¬ For tutoring, private and group lessons: 0546123730
+            </span>
+        </a>
+      </div>
+    </nav>
+    <div class="container pb-5">
+        <!-- instructions -->
+        <div class="alert alert-primary shadow-sm rounded-3 mb-4 d-flex align-items-start" id="instructions">
+            <i class="bi bi-info-circle-fill fs-4 me-3 mt-1"></i>
+            <div>
+                <strong>Important:</strong> Please ensure all files are properly extracted before uploading.
+                Do not drag files directly out of a zip archive. Make sure they are plain <code>.py</code>
+                or <code class="bg-light px-1 rounded">.txt</code> files.
+                <br>
+                <div class="mt-2 text-dark font-monospace small">
+                    <i class="bi bi-lightning-charge-fill text-warning me-1"></i>
+                    <strong>Static Execution:</strong> Code execution runs locally in your browser using WebAssembly. Data never leaves your machine. 
+                </div>
+            </div>
+        </div>
+
+        <div class="row" id="columns-container">
+            <!-- Columns generated dynamically by JS -->
+        </div>
+    </div>
+
+    <!-- Modals container -->
+    <div id="modals-container"></div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

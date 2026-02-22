@@ -1,0 +1,100 @@
+body {
+    background-color: #f4f6f9;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+.navbar {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.navbar-brand {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+.drop-area {
+    border: 2px dashed #ced4da;
+    border-radius: 12px;
+    text-align: center;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    cursor: pointer;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 80px;
+    font-weight: 500;
+}
+.drop-area:hover, .drop-area.over {
+    border-color: #0d6efd;
+    background-color: #f8fbff;
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.1);
+    color: #0d6efd !important;
+    transform: translateY(-2px);
+}
+.drop-area.border-success {
+    border-color: #198754 !important;
+    border-style: solid;
+    color: #198754 !important;
+    transform: none;
+    box-shadow: none;
+}
+.card {
+    border-radius: 12px;
+    overflow: hidden;
+    transition: box-shadow 0.3s;
+}
+.card:hover {
+    box-shadow: 0 8px 16px rgba(0,0,0,0.06) !important;
+}
+.card-header {
+    border-bottom: none;
+}
+.result {
+    border: 1px solid #e9ecef;
+}
+
+/* Diff table styling */
+.diff-table-wrapper {
+    background: #fff;
+    border-radius: 8px;
+    padding: 1rem;
+}
+table.diff {
+    width: 100%; 
+    border-collapse: collapse; 
+    margin-top: 10px; 
+    border-radius: 8px; 
+    overflow: hidden; 
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+table.diff th, table.diff td {
+    border: 1px solid #e9ecef;
+    padding: 10px 12px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    vertical-align: top;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+.diff_header {
+    background-color: #f1f3f5;
+    font-weight: bold;
+    text-align: right;
+    width: 40px;
+    color: #6c757d;
+}
+.diff_next {
+    background-color: #f1f3f5;
+    width: 15px;
+}
+.diff_add {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+.diff_chg {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+.diff_sub {
+    background-color: #f8d7da;
+    color: #842029;
+}
