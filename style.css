@@ -156,6 +156,15 @@ body {
     color: #fff;
 }
 
+/* Tutorial Collapse Chevron */
+.tutorial-chevron {
+    transition: transform 0.3s ease;
+}
+
+[aria-expanded="false"] .tutorial-chevron {
+    transform: rotate(-90deg);
+}
+
 .tab-pane {
     animation: fadeIn 0.4s ease-out;
 }

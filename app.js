@@ -407,9 +407,17 @@ document.addEventListener('drop', (e) => {
 async function handleGlobalDrop(e) {
     e.preventDefault();
     e.stopPropagation();
-    const items = e.dataTransfer.items;
-    if (!items) return;
 
+    const files = e.dataTransfer.files;
+    const items = e.dataTransfer.items;
+
+    // Check if a single .zip file was dropped
+    if (files.length === 1 && files[0].name.endsWith('.zip')) {
+        return handleZipDrop(files[0]);
+    }
+
+    // Otherwise treat as folder drop
+    if (!items) return;
     const queue = [];
     for (let i = 0; i < items.length; i++) {
         let entry = items[i].webkitGetAsEntry();
@@ -417,9 +425,7 @@ async function handleGlobalDrop(e) {
     }
     if (queue.length === 0) return;
 
-    // Show loading toast
     const toast = showToast('<span class="spinner-border spinner-border-sm me-2"></span> Scanning folder...', 'bg-primary');
-
     try {
         const fileEntries = [];
         await scanFileTree(queue, fileEntries);
@@ -436,6 +442,43 @@ async function handleGlobalDrop(e) {
         toast.remove();
         console.error('Folder drop error:', err);
         showToast(`<i class="bi bi-exclamation-triangle-fill me-2"></i> Error: ${err.message}`, 'bg-danger', 4000);
+    }
+}
+
+async function handleZipDrop(zipFile) {
+    const toast = showToast('<span class="spinner-border spinner-border-sm me-2"></span> Extracting zip...', 'bg-primary');
+    try {
+        const zip = await JSZip.loadAsync(zipFile);
+        const fileEntries = [];
+
+        const promises = [];
+        zip.forEach((relativePath, zipEntry) => {
+            if (zipEntry.dir) return; // skip directories
+            const fileName = relativePath.split('/').pop(); // get basename
+            // Accept .txt, .py, and extensionless files
+            if (fileName.endsWith('.txt') || fileName.endsWith('.py') || !fileName.includes('.')) {
+                promises.push(
+                    zipEntry.async('string').then(content => {
+                        fileEntries.push({ name: fileName, content });
+                    })
+                );
+            }
+        });
+
+        await Promise.all(promises);
+        console.log('[ZipUpload] Extracted files:', fileEntries.map(f => f.name));
+        toast.querySelector('.toast-body').innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Distributing ${fileEntries.length} files...`;
+        const filled = parseAndDistributeFiles(fileEntries);
+        toast.remove();
+        if (filled > 0) {
+            showToast(`<i class="bi bi-check-circle-fill me-2"></i> Auto-filled ${filled} test files from zip!`, 'bg-success', 3000);
+        } else {
+            showToast(`<i class="bi bi-info-circle-fill me-2"></i> No matching files found in zip (expected: hw1q1in1, hw1q2out3, etc.)`, 'bg-warning text-dark', 4000);
+        }
+    } catch (err) {
+        toast.remove();
+        console.error('Zip extraction error:', err);
+        showToast(`<i class="bi bi-exclamation-triangle-fill me-2"></i> Error extracting zip: ${err.message}`, 'bg-danger', 4000);
     }
 }
 
