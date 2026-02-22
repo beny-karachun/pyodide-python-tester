@@ -30,6 +30,10 @@ function switchCodeMode(mode, hwId, qId) {
         editorBtn.className = 'btn btn-sm btn-outline-light fw-semibold';
         uploadBtn.className = 'btn btn-sm btn-light fw-semibold active';
     }
+    if (state[hwId]?.questions[qId]) {
+        state[hwId].questions[qId].codeMode = mode;
+        saveState();
+    }
 }
 
 function initCodeEditor(hwId, qId) {
@@ -72,6 +76,7 @@ function initCodeEditor(hwId, qId) {
         // Debounced reset of test results when code changes
         clearTimeout(resetDebounce);
         resetDebounce = setTimeout(() => resetTestResults(hwId, qId), 500);
+        saveState();
     }
 
     textarea.addEventListener('input', () => {
@@ -127,6 +132,132 @@ function initWorker() {
     };
 }
 
+// ─── LOCALSTORAGE PERSISTENCE ────────────────────────────────────────────────
+
+let saveDebounce = null;
+function saveState() {
+    clearTimeout(saveDebounce);
+    saveDebounce = setTimeout(() => {
+        try {
+            const data = {
+                tabCount,
+                currentTabId,
+                state
+            };
+            localStorage.setItem('pyTesterState', JSON.stringify(data));
+            console.log('[Storage] State saved');
+        } catch (e) {
+            console.warn('[Storage] Failed to save state:', e);
+        }
+    }, 300);
+}
+
+function loadState() {
+    try {
+        const raw = localStorage.getItem('pyTesterState');
+        if (!raw) return false;
+
+        const data = JSON.parse(raw);
+        if (!data.state || Object.keys(data.state).length === 0) return false;
+
+        tabCount = data.tabCount || 0;
+        currentTabId = data.currentTabId || 0;
+
+        // Rebuild UI from saved state
+        for (const hwIdStr of Object.keys(data.state)) {
+            const hwId = parseInt(hwIdStr);
+            const hw = data.state[hwId];
+
+            state[hwId] = { questionCount: hw.questionCount || 0, questions: {} };
+            renderTabLink(hwId, `HW${hwId}`);
+            renderTabContent(hwId);
+
+            for (const qIdStr of Object.keys(hw.questions)) {
+                const qId = parseInt(qIdStr);
+                const q = hw.questions[qId];
+                const qName = `Q${qId + 1}`;
+
+                // Initialize question state with saved data
+                state[hwId].questions[qId] = {
+                    code: q.code || null,
+                    codeName: q.codeName || null,
+                    codeMode: q.codeMode || 'editor',
+                    tests: {}
+                };
+                for (let t = 1; t <= testCasesCount; t++) {
+                    state[hwId].questions[qId].tests[t] = {
+                        input: q.tests?.[t]?.input || null,
+                        inputName: q.tests?.[t]?.inputName || null,
+                        expected: q.tests?.[t]?.expected || null,
+                        expectedName: q.tests?.[t]?.expectedName || null
+                    };
+                }
+
+                renderQuestionTabLink(hwId, qId, qName);
+                renderQuestionContent(hwId, qId);
+                setupDragAndDropForQuestion(hwId, qId);
+
+                // Restore code based on saved mode
+                const savedMode = q.codeMode || 'editor';
+                if (savedMode === 'upload' && q.code && q.codeName) {
+                    // Switch to upload view and show the file indicator
+                    switchCodeMode('upload', hwId, qId);
+                    const dropArea = document.getElementById(`code-drop-area-${hwId}-${qId}`);
+                    if (dropArea) {
+                        dropArea.innerHTML = `
+                            <div class="d-flex flex-column align-items-center text-success position-relative w-100 h-100 justify-content-center">
+                                <button onclick="removeFile(event, 'code', ${hwId}, ${qId})" class="btn btn-sm btn-danger rounded-circle position-absolute top-0 end-0 m-2" title="Remove File" style="width: 28px; height: 28px; padding: 0;">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                                <i class="bi bi-check-circle-fill display-5 mb-2"></i><span class="fw-bold fs-5">${q.codeName}</span>
+                            </div>`;
+                        dropArea.classList.add('border-success', 'bg-success', 'bg-opacity-10');
+                        dropArea.onclick = null;
+                    }
+                } else if (q.code) {
+                    // Restore code in inline editor
+                    const textarea = document.getElementById(`code-textarea-${hwId}-${qId}`);
+                    if (textarea) {
+                        textarea.value = q.code;
+                        textarea.dispatchEvent(new Event('input'));
+                    }
+                }
+
+                // Restore file upload UI indicators
+                for (let t = 1; t <= testCasesCount; t++) {
+                    if (q.tests?.[t]?.input && q.tests[t].inputName) {
+                        updateFileUI('input', hwId, qId, t, q.tests[t].inputName);
+                    }
+                    if (q.tests?.[t]?.expected && q.tests[t].expectedName) {
+                        updateFileUI('expected', hwId, qId, t, q.tests[t].expectedName);
+                    }
+                }
+            }
+        }
+
+        // Clear all manually-added active states before letting Bootstrap manage them
+        document.querySelectorAll('#tab-content-container > .tab-pane').forEach(p => {
+            p.classList.remove('show', 'active');
+        });
+        document.querySelectorAll('#hw-tabs .nav-link').forEach(l => {
+            l.classList.remove('active');
+        });
+
+        // Activate the last used tab
+        switchTab(currentTabId);
+        if (state[currentTabId]) {
+            const firstQ = Object.keys(state[currentTabId].questions)[0];
+            if (firstQ !== undefined) switchQuestion(currentTabId, parseInt(firstQ));
+        }
+
+        console.log('[Storage] State restored from localStorage');
+        return true;
+    } catch (e) {
+        console.error('[Storage] Failed to load state:', e);
+        return false;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initWorker();
 
@@ -157,9 +288,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Initialize first tab HW0
-    addNewTab();
+    // Try to load saved state, otherwise create default tab
+    if (!loadState()) {
+        addNewTab();
+    }
 });
+
 
 // ─── HW TABS ─────────────────────────────────────────────────────────────────
 
@@ -179,6 +313,7 @@ function addNewTab(forceHwId = null) {
     }
 
     switchTab(hwId);
+    saveState();
     return hwId;
 }
 
@@ -239,6 +374,7 @@ function switchTab(hwId) {
         let tab = new bootstrap.Tab(tabTriggerEl);
         tab.show();
         currentTabId = hwId;
+        saveState();
     }
 }
 
@@ -276,6 +412,7 @@ function deleteTab(hwId) {
     if (remaining.length > 0) {
         switchTab(parseInt(remaining[0]));
     }
+    saveState();
 }
 
 // ─── QUESTION SUBTABS ────────────────────────────────────────────────────────
@@ -285,7 +422,7 @@ function addQuestion(hwId, forceQId = null) {
     if (qId >= state[hwId].questionCount) state[hwId].questionCount = qId + 1;
     const qName = `Q${qId + 1}`;
 
-    state[hwId].questions[qId] = { code: null, codeName: null, tests: {} };
+    state[hwId].questions[qId] = { code: null, codeName: null, codeMode: 'editor', tests: {} };
     for (let t = 1; t <= testCasesCount; t++) {
         state[hwId].questions[qId].tests[t] = { input: null, inputName: null, expected: null, expectedName: null };
     }
@@ -294,6 +431,7 @@ function addQuestion(hwId, forceQId = null) {
     renderQuestionContent(hwId, qId);
     setupDragAndDropForQuestion(hwId, qId);
     switchQuestion(hwId, qId);
+    saveState();
     return qId;
 }
 
@@ -347,6 +485,7 @@ function deleteQuestion(hwId, qId) {
     if (remaining.length > 0) {
         switchQuestion(hwId, parseInt(remaining[0]));
     }
+    saveState();
 }
 
 function renderQuestionContent(hwId, qId) {
@@ -973,6 +1112,7 @@ async function handleCodeDrop(e, hwId, qId) {
         let { name, content } = await readFile(file);
         state[hwId].questions[qId].code = content;
         state[hwId].questions[qId].codeName = name;
+        state[hwId].questions[qId].codeMode = 'upload';
         resetTestResults(hwId, qId);
         e.target.innerHTML = `
     <div class="d-flex flex-column align-items-center text-success position-relative w-100 h-100 justify-content-center">
@@ -983,6 +1123,7 @@ async function handleCodeDrop(e, hwId, qId) {
             </div>`;
         e.target.classList.add('border-success', 'bg-success', 'bg-opacity-10');
         e.target.onclick = null;
+        saveState();
     } catch (err) {
         alert("Failed to read file.");
     }
@@ -1010,6 +1151,7 @@ async function handleFileDrop(e, type, hwId, qId, t) {
             </div>`;
         e.target.classList.add('border-success', 'bg-success', 'bg-opacity-10');
         e.target.onclick = null;
+        saveState();
     } catch (err) {
         alert("Failed to read file.");
     }
@@ -1081,6 +1223,7 @@ function removeFile(e, type, hwId, qId, t = null) {
                 <p class="mb-0">Run tests to generate the diff comparison table.</p>
             </div>`;
     }
+    saveState();
 }
 
 function clearQuestion(hwId, qId) {
