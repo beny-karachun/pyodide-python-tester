@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="lang.js"></script>
 </head>
 
 <body>
@@ -16,15 +17,32 @@
         <div class="container-fluid">
             <a class="navbar-brand d-flex align-items-center" href="#">
                 <i class="bi bi-terminal-fill me-2 fs-4"></i>
-                Python Code Tester - Beny Karachun
+                <div>
+                    <span data-i18n="nav.title">Python Code Tester - Beny Karachun</span>
+                    <div class="text-white-50" style="font-size: 0.7rem; letter-spacing: 0.3px;" data-i18n="nav.course">
+                        02340128 - מבוא למחשב שפת פייתון · Technion</div>
+                </div>
             </a>
             <div class="ms-auto d-flex align-items-center text-white-50">
                 <button
-                    class="btn btn-outline-light btn-sm rounded-circle d-flex align-items-center justify-content-center me-3 shadow-none border-0 fs-5"
+                    class="btn btn-outline-light btn-sm rounded-circle d-flex align-items-center justify-content-center me-2 shadow-none border-0 fs-5"
                     id="theme-toggle" title="Toggle Dark/Light Mode">
                     <i class="bi bi-moon-stars-fill" id="theme-icon"></i>
                 </button>
+                <button
+                    class="btn btn-outline-light btn-sm d-flex align-items-center justify-content-center me-3 shadow-none border-0 fw-bold"
+                    id="lang-toggle" onclick="toggleLanguage()" title="עברית"
+                    style="font-size: 0.85rem; min-width: 32px;">עב</button>
                 <div class="d-none d-md-flex align-items-center gap-3 opacity-75">
+                    <a href="https://wa.me/972546123730?text=Hi%20Beny!%20I%27m%20interested%20in%20Python%20tutoring"
+                        target="_blank"
+                        class="badge bg-success bg-opacity-75 text-white text-decoration-none d-flex align-items-center px-3 py-2 me-2"
+                        title="Contact me for tutoring!" style="font-size: 0.78rem; border-radius: 20px;">
+                        <span class="d-inline-block rounded-circle bg-white me-2"
+                            style="width: 7px; height: 7px; animation: pulse-dot 2s infinite;"></span>
+                        <i class="bi bi-mortarboard-fill me-1"></i> <span data-i18n="nav.tutoring">Available for
+                            Tutoring</span>
+                    </a>
                     <a href="https://github.com/beny-karachun" target="_blank" class="text-white text-decoration-none"
                         title="GitHub">
                         <i class="bi bi-github fs-5 transition-transform hover-scale"></i>
@@ -50,7 +68,7 @@
                 style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#tutorial-body" aria-expanded="true">
                 <div class="d-flex align-items-center">
                     <i class="bi bi-book-half fs-4 me-3"></i>
-                    <h5 class="mb-0 fw-bold">How to Use This Tool</h5>
+                    <h5 class="mb-0 fw-bold" data-i18n="tutorial.title">How to Use This Tool</h5>
                 </div>
                 <i class="bi bi-chevron-down text-white-50 fs-5 tutorial-chevron"></i>
             </div>
@@ -64,8 +82,8 @@
                                 <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3 flex-shrink-0 shadow-sm"
                                     style="width: 36px; height: 36px; font-weight: 700;">1</div>
                                 <div>
-                                    <h6 class="fw-bold mb-1">Organize by Homework</h6>
-                                    <p class="mb-0 small text-muted">
+                                    <h6 class="fw-bold mb-1" data-i18n="tutorial.step1.title">Organize by Homework</h6>
+                                    <p class="mb-0 small text-muted" data-i18n="tutorial.step1.desc" data-i18n-html>
                                         Use the <strong>HW tabs</strong> at the top to manage different assignments.
                                         Click <code>+</code> to add more.
                                         Each HW tab has <strong>Question subtabs</strong> (Q1, Q2, ...) for individual
@@ -81,8 +99,8 @@
                                 <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3 flex-shrink-0 shadow-sm"
                                     style="width: 36px; height: 36px; font-weight: 700;">2</div>
                                 <div>
-                                    <h6 class="fw-bold mb-1">Upload Your Code</h6>
-                                    <p class="mb-0 small text-muted">
+                                    <h6 class="fw-bold mb-1" data-i18n="tutorial.step2.title">Upload Your Code</h6>
+                                    <p class="mb-0 small text-muted" data-i18n="tutorial.step2.desc" data-i18n-html>
                                         Drag & drop your <code>.py</code> file into the blue upload area,
                                         or click to browse. One Python file per question.
                                     </p>
@@ -96,8 +114,8 @@
                                 <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3 flex-shrink-0 shadow-sm"
                                     style="width: 36px; height: 36px; font-weight: 700;">3</div>
                                 <div>
-                                    <h6 class="fw-bold mb-1">Add Test Cases</h6>
-                                    <p class="mb-0 small text-muted">
+                                    <h6 class="fw-bold mb-1" data-i18n="tutorial.step3.title">Add Test Cases</h6>
+                                    <p class="mb-0 small text-muted" data-i18n="tutorial.step3.desc" data-i18n-html>
                                         Each test case needs an <strong>input</strong> and <strong>expected
                                             output</strong> <code>.txt</code> file.
                                         Drop them into the matching slots.
@@ -112,8 +130,8 @@
                                 <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center me-3 flex-shrink-0 shadow-sm"
                                     style="width: 36px; height: 36px; font-weight: 700;">4</div>
                                 <div>
-                                    <h6 class="fw-bold mb-1">Run & Compare</h6>
-                                    <p class="mb-0 small text-muted">
+                                    <h6 class="fw-bold mb-1" data-i18n="tutorial.step4.title">Run & Compare</h6>
+                                    <p class="mb-0 small text-muted" data-i18n="tutorial.step4.desc" data-i18n-html>
                                         Hit <strong>Execute</strong> to run your code against all test cases.
                                         You'll see a <span class="text-success fw-bold">✓ Pass</span> or
                                         a <span class="text-danger fw-bold">✗ Diff</span> for each.
@@ -130,8 +148,8 @@
                                     <i class="bi bi-folder-fill"></i>
                                 </div>
                                 <div>
-                                    <h6 class="fw-bold mb-1">Bulk Upload</h6>
-                                    <p class="mb-1 small text-muted">
+                                    <h6 class="fw-bold mb-1" data-i18n="tutorial.bulk.title">Bulk Upload</h6>
+                                    <p class="mb-1 small text-muted" data-i18n="tutorial.bulk.desc" data-i18n-html>
                                         Drop an entire <strong>folder</strong> or <strong>.zip</strong> file anywhere on
                                         the page!
                                         Files are auto-sorted into the right slots based on their name. Tabs & subtabs
@@ -140,8 +158,9 @@
                                     <a class="small fw-semibold text-primary"
                                         style="cursor: pointer; text-decoration: none;" data-bs-toggle="modal"
                                         data-bs-target="#orama-explainer-modal">
-                                        🧬 Wanna know how? It's not what you think! <i
-                                            class="bi bi-arrow-up-right-square ms-1" style="font-size: 0.7rem;"></i>
+                                        <span data-i18n="tutorial.bulk.link">🧬 Wanna know how? It's not what you
+                                            think!</span> <i class="bi bi-arrow-up-right-square ms-1"
+                                            style="font-size: 0.7rem;"></i>
                                     </a>
                                 </div>
                             </div>
@@ -155,8 +174,8 @@
                                     <i class="bi bi-shield-lock-fill"></i>
                                 </div>
                                 <div>
-                                    <h6 class="fw-bold mb-1">100% Private</h6>
-                                    <p class="mb-0 small text-muted">
+                                    <h6 class="fw-bold mb-1" data-i18n="tutorial.privacy.title">100% Private</h6>
+                                    <p class="mb-0 small text-muted" data-i18n="tutorial.privacy.desc" data-i18n-html>
                                         Everything runs <strong>locally in your browser</strong> via WebAssembly
                                         (Pyodide).
                                         No data is sent to any server. Your code never leaves your machine.
@@ -321,6 +340,12 @@
             </div>
         </div>
     </div>
+
+    <!-- Footer Disclaimer -->
+    <footer class="text-center py-3 mt-4" style="font-size: 0.75rem; opacity: 0.5;">
+        <p class="mb-0" data-i18n="footer.disclaimer">This website is an independent student project and is not
+            affiliated with, endorsed by, or associated with the Technion – Israel Institute of Technology.</p>
+    </footer>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

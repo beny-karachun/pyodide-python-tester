@@ -36,12 +36,94 @@
     --diff-border: #334155;
 }
 
+/* Dark mode: Tutorial card & Orama modal text visibility */
+[data-theme="dark"] #tutorial-card .card-body,
+[data-theme="dark"] #orama-explainer-modal .modal-body {
+    color: #e2e8f0;
+}
+
+[data-theme="dark"] #tutorial-card .card-body p,
+[data-theme="dark"] #tutorial-card .card-body h6,
+[data-theme="dark"] #tutorial-card .card-body small,
+[data-theme="dark"] #tutorial-card .card-body .text-muted,
+[data-theme="dark"] #orama-explainer-modal .modal-body p,
+[data-theme="dark"] #orama-explainer-modal .modal-body h6,
+[data-theme="dark"] #orama-explainer-modal .modal-body small,
+[data-theme="dark"] #orama-explainer-modal .modal-body .text-muted,
+[data-theme="dark"] #orama-explainer-modal .modal-body td,
+[data-theme="dark"] #orama-explainer-modal .modal-body th {
+    color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] #tutorial-card .card-body .fw-bold,
+[data-theme="dark"] #orama-explainer-modal .modal-body .fw-bold {
+    color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] #orama-explainer-modal .modal-content {
+    background: #1e293b;
+}
+
+[data-theme="dark"] #orama-explainer-modal .modal-body [style*="background: #f8fafc"],
+[data-theme="dark"] #orama-explainer-modal .modal-body [style*="background: #f1f5f9"] {
+    background: #334155 !important;
+    border-color: #475569 !important;
+}
+
+[data-theme="dark"] #orama-explainer-modal .modal-body [style*="background: linear-gradient"] {
+    background: linear-gradient(135deg, #1e3a5f, #1a3d2e) !important;
+}
+
+[data-theme="dark"] #orama-explainer-modal .modal-footer {
+    background: #0f172a !important;
+}
+
+[data-theme="dark"] #orama-explainer-modal .table {
+    --bs-table-bg: #1e293b;
+    --bs-table-border-color: #475569;
+}
+
+[data-theme="dark"] #orama-explainer-modal .table-light {
+    --bs-table-bg: #334155;
+    color: #e2e8f0;
+}
+
 body {
     background-color: var(--bg-main);
     /* Softer, cooler off-white */
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     color: var(--text-main);
     transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* RTL support for Hebrew */
+[dir="rtl"] .me-2 {
+    margin-right: 0 !important;
+    margin-left: 0.5rem !important;
+}
+
+[dir="rtl"] .me-3 {
+    margin-right: 0 !important;
+    margin-left: 1rem !important;
+}
+
+[dir="rtl"] .ms-auto {
+    margin-left: unset !important;
+    margin-right: auto !important;
+}
+
+[dir="rtl"] .ms-1 {
+    margin-left: 0 !important;
+    margin-right: 0.25rem !important;
+}
+
+[dir="rtl"] .text-start {
+    text-align: right !important;
+}
+
+[dir="rtl"] code {
+    direction: ltr;
+    display: inline-block;
 }
 
 .navbar {
@@ -372,4 +454,19 @@ table.diff td {
 
 .opacity-75:hover {
     opacity: 1;
+}
+
+/* Pulsing dot for tutoring badge */
+@keyframes pulse-dot {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.4;
+        transform: scale(0.7);
+    }
 }
