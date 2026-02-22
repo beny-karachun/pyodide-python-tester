@@ -131,13 +131,52 @@
                                 </div>
                                 <div>
                                     <h6 class="fw-bold mb-1">Bulk Upload</h6>
-                                    <p class="mb-0 small text-muted">
+                                    <p class="mb-1 small text-muted">
                                         Drop an entire <strong>folder</strong> or <strong>.zip</strong> file anywhere on
                                         the page!
-                                        Files named <code>hw1q1in1</code>, <code>hw1q2out3</code>, etc. are auto-sorted
-                                        into the right slots.
-                                        Tabs & subtabs are created automatically.
+                                        Files are auto-sorted into the right slots based on their name. Tabs & subtabs
+                                        are created automatically.
                                     </p>
+                                    <a class="small fw-semibold text-primary"
+                                        style="cursor: pointer; text-decoration: none;" data-bs-toggle="collapse"
+                                        data-bs-target="#bulk-explainer">
+                                        🧬 Wanna know how? It's not what you think! <i class="bi bi-chevron-down"
+                                            style="font-size: 0.7rem;"></i>
+                                    </a>
+                                    <div class="collapse mt-2" id="bulk-explainer">
+                                        <div class="p-3 rounded-3 small"
+                                            style="background: rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.08);">
+                                            <p class="mb-2">
+                                                When you drop a folder or zip, the tool <strong>scans every
+                                                    file</strong> recursively and reads each filename.
+                                                It then runs a <strong>pattern matcher</strong> that decodes the
+                                                filename into 4 pieces:
+                                            </p>
+                                            <div class="font-monospace mb-2 text-center" style="font-size: 0.95rem;">
+                                                <code>hw<span class="text-primary fw-bold">X</span>q<span class="text-primary fw-bold">Y</span><span class="text-success fw-bold">in</span><span class="text-warning fw-bold">Z</span></code>
+                                                &nbsp;or&nbsp;
+                                                <code>hw<span class="text-primary fw-bold">X</span>q<span class="text-primary fw-bold">Y</span><span class="text-danger fw-bold">out</span><span class="text-warning fw-bold">Z</span></code>
+                                            </div>
+                                            <ul class="mb-2 ps-3" style="font-size: 0.8rem;">
+                                                <li><code class="text-primary">X</code> → <strong>Homework</strong>
+                                                    number (creates the HW tab)</li>
+                                                <li><code class="text-primary">Y</code> → <strong>Question</strong>
+                                                    number (creates the Q subtab)</li>
+                                                <li><code class="text-success">in</code> / <code
+                                                        class="text-danger">out</code> → <strong>Input</strong> or
+                                                    <strong>expected output</strong></li>
+                                                <li><code class="text-warning">Z</code> → <strong>Test case</strong>
+                                                    number (slots into the right row)</li>
+                                            </ul>
+                                            <p class="mb-0" style="font-size: 0.8rem;">
+                                                <em>Example:</em> <code>hw1q2out3.txt</code> → automatically goes to
+                                                <strong>HW1</strong>, <strong>Q2</strong>, <strong>Expected
+                                                    Output</strong>, <strong>Test Case 3</strong>. ✨
+                                                <br>The tool creates any missing tabs and subtabs on the fly — zero
+                                                manual setup needed!
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
