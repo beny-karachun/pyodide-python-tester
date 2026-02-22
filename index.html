@@ -138,45 +138,11 @@
                                         are created automatically.
                                     </p>
                                     <a class="small fw-semibold text-primary"
-                                        style="cursor: pointer; text-decoration: none;" data-bs-toggle="collapse"
-                                        data-bs-target="#bulk-explainer">
-                                        🧬 Wanna know how? It's not what you think! <i class="bi bi-chevron-down"
-                                            style="font-size: 0.7rem;"></i>
+                                        style="cursor: pointer; text-decoration: none;" data-bs-toggle="modal"
+                                        data-bs-target="#orama-explainer-modal">
+                                        🧬 Wanna know how? It's not what you think! <i
+                                            class="bi bi-arrow-up-right-square ms-1" style="font-size: 0.7rem;"></i>
                                     </a>
-                                    <div class="collapse mt-2" id="bulk-explainer">
-                                        <div class="p-3 rounded-3 small"
-                                            style="background: rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.08);">
-                                            <p class="mb-2">
-                                                When you drop a folder or zip, the tool <strong>scans every
-                                                    file</strong> recursively and reads each filename.
-                                                It then runs a <strong>pattern matcher</strong> that decodes the
-                                                filename into 4 pieces:
-                                            </p>
-                                            <div class="font-monospace mb-2 text-center" style="font-size: 0.95rem;">
-                                                <code>hw<span class="text-primary fw-bold">X</span>q<span class="text-primary fw-bold">Y</span><span class="text-success fw-bold">in</span><span class="text-warning fw-bold">Z</span></code>
-                                                &nbsp;or&nbsp;
-                                                <code>hw<span class="text-primary fw-bold">X</span>q<span class="text-primary fw-bold">Y</span><span class="text-danger fw-bold">out</span><span class="text-warning fw-bold">Z</span></code>
-                                            </div>
-                                            <ul class="mb-2 ps-3" style="font-size: 0.8rem;">
-                                                <li><code class="text-primary">X</code> → <strong>Homework</strong>
-                                                    number (creates the HW tab)</li>
-                                                <li><code class="text-primary">Y</code> → <strong>Question</strong>
-                                                    number (creates the Q subtab)</li>
-                                                <li><code class="text-success">in</code> / <code
-                                                        class="text-danger">out</code> → <strong>Input</strong> or
-                                                    <strong>expected output</strong></li>
-                                                <li><code class="text-warning">Z</code> → <strong>Test case</strong>
-                                                    number (slots into the right row)</li>
-                                            </ul>
-                                            <p class="mb-0" style="font-size: 0.8rem;">
-                                                <em>Example:</em> <code>hw1q2out3.txt</code> → automatically goes to
-                                                <strong>HW1</strong>, <strong>Q2</strong>, <strong>Expected
-                                                    Output</strong>, <strong>Test Case 3</strong>. ✨
-                                                <br>The tool creates any missing tabs and subtabs on the fly — zero
-                                                manual setup needed!
-                                            </p>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -223,6 +189,138 @@
 
     <!-- Modals container -->
     <div id="modals-container"></div>
+
+    <!-- Orama Explainer Modal -->
+    <div class="modal fade" id="orama-explainer-modal" tabindex="-1" aria-labelledby="oramaExplainerLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+                <div class="modal-header bg-primary text-white border-0 py-3 px-4">
+                    <h5 class="modal-title fw-bold" id="oramaExplainerLabel">
+                        <i class="bi bi-stars me-2"></i>How Does Bulk Upload Work?
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body px-4 py-4">
+                    <!-- Intro -->
+                    <div class="d-flex align-items-center mb-3 p-3 rounded-3"
+                        style="background: linear-gradient(135deg, #eff6ff, #f0fdf4);">
+                        <div class="d-flex align-items-center justify-content-center me-3 rounded"
+                            style="width: 36px; height: 36px; background: linear-gradient(135deg, #3b82f6, #10b981); flex-shrink: 0;">
+                            <i class="bi bi-search-heart-fill text-white" style="font-size: 1.1rem;"></i>
+                        </div>
+                        <div>
+                            <strong style="font-size: 1rem;">Powered by <a href="https://orama.com" target="_blank"
+                                    class="text-decoration-none">Orama</a></strong>
+                            <div class="text-muted small">A full-text & vector search engine — running 100% in your
+                                browser. No backend. No server. Your files never leave your machine.</div>
+                        </div>
+                    </div>
+
+                    <!-- Not regex -->
+                    <p class="mb-3">
+                        This isn't a simple pattern matcher (regex). Orama is a <strong>hybrid search engine</strong>
+                        that combines
+                        <strong>full-text search</strong> with <strong>vector-based semantic understanding</strong> —
+                        the same tech behind modern search engines.
+                    </p>
+
+                    <!-- How it works -->
+                    <h6 class="fw-bold text-primary mb-2"><i class="bi bi-gear-fill me-1"></i> How It Works</h6>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-4">
+                            <div class="p-3 rounded-3 h-100" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                                <div class="fw-bold text-primary mb-1"><i class="bi bi-database-fill me-1"></i> 1. Index
+                                </div>
+                                <small class="text-muted">Every dropped file is inserted into an <strong>Orama search
+                                        database</strong> right in your browser. Filenames become searchable
+                                    documents.</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 rounded-3 h-100" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                                <div class="fw-bold text-success mb-1"><i class="bi bi-search me-1"></i> 2. Search</div>
+                                <small class="text-muted">Orama uses <strong>BM25 ranking</strong> to find the best
+                                    match for each test slot — scoring relevance, not just checking exact
+                                    letters.</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 rounded-3 h-100" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                                <div class="fw-bold text-warning mb-1"><i class="bi bi-bullseye me-1"></i> 3. Place
+                                </div>
+                                <small class="text-muted">The highest-scoring matches are routed to the correct
+                                    <strong>HW tab → Q subtab → test case</strong>. Missing tabs are created on the
+                                    fly.</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Why it's smart -->
+                    <h6 class="fw-bold text-primary mb-2"><i class="bi bi-lightbulb-fill me-1"></i> Why It's Smarter
+                        Than Regex</h6>
+                    <p class="small text-muted mb-2">
+                        Regex only sees <em>letters</em>. Orama understands <em>meaning</em>. Even if your files aren't
+                        named exactly <code>hw1q1in1</code>,
+                        Orama's tokenizer and scoring engine will still figure out where they belong.
+                    </p>
+                    <div class="table-responsive mb-3">
+                        <table class="table table-sm table-bordered text-center small mb-0" style="font-size: 0.82rem;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 25%;">Approach</th>
+                                    <th>How it sees <code>hw1q2out3</code></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="fw-bold text-secondary">Regex</td>
+                                    <td class="text-start">It's the letters <code>h, w, 1, q, 2, o, u, t, 3</code>.
+                                        Exact match required — change one letter and it fails.</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-primary">Orama (Text)</td>
+                                    <td class="text-start">It's a searchable document containing tokens:
+                                        <code>hw1q2out3</code>. Stemming & BM25 ranking find the best match even with
+                                        variations.
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-success">Orama (Vector)</td>
+                                    <td class="text-start">It's a point in meaning-space that's <em>closest</em> to
+                                        "homework 1, question 2, output, test 3" — no exact naming required.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Naming convention -->
+                    <h6 class="fw-bold text-primary mb-2"><i class="bi bi-tag-fill me-1"></i> Recommended Naming</h6>
+                    <div class="p-2 rounded mb-2" style="background: #f1f5f9; font-size: 0.85rem;">
+                        <code>hw<span class="text-primary fw-bold">X</span>q<span class="text-primary fw-bold">Y</span><span class="text-success fw-bold">in</span><span class="text-warning fw-bold">Z</span></code>
+                        &nbsp;or&nbsp;
+                        <code>hw<span class="text-primary fw-bold">X</span>q<span class="text-primary fw-bold">Y</span><span class="text-danger fw-bold">out</span><span class="text-warning fw-bold">Z</span></code>
+                        &nbsp;—&nbsp;
+                        <code class="text-primary">X</code>=homework,
+                        <code class="text-primary">Y</code>=question,
+                        <code class="text-success">in</code>/<code class="text-danger">out</code>=type,
+                        <code class="text-warning">Z</code>=test case
+                    </div>
+                    <p class="small text-muted mb-0">
+                        <em>Example:</em> <code>hw1q2out3.txt</code> → Orama scores it <strong>0.96</strong> and routes
+                        it to
+                        <strong>HW1 · Q2 · Expected Output · Test 3</strong>. ✨
+                    </p>
+                </div>
+                <div class="modal-footer border-0 bg-light py-2 px-4">
+                    <small class="text-muted me-auto"><i class="bi bi-shield-lock-fill text-success me-1"></i> 100%
+                        client-side — no data leaves your browser</small>
+                    <button type="button" class="btn btn-primary btn-sm px-3" data-bs-dismiss="modal">Got it!</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

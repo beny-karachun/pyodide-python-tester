@@ -430,8 +430,8 @@ async function handleGlobalDrop(e) {
         const fileEntries = [];
         await scanFileTree(queue, fileEntries);
         console.log('[FolderUpload] Scanned files:', fileEntries.map(f => f.name));
-        toast.querySelector('.toast-body').innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Distributing ${fileEntries.length} files...`;
-        const filled = parseAndDistributeFiles(fileEntries);
+        toast.querySelector('.toast-body').innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Searching with Orama (${fileEntries.length} files)...`;
+        const filled = await parseAndDistributeFiles(fileEntries);
         toast.remove();
         if (filled > 0) {
             showToast(`<i class="bi bi-check-circle-fill me-2"></i> Auto-filled ${filled} test files!`, 'bg-success', 3000);
@@ -467,8 +467,8 @@ async function handleZipDrop(zipFile) {
 
         await Promise.all(promises);
         console.log('[ZipUpload] Extracted files:', fileEntries.map(f => f.name));
-        toast.querySelector('.toast-body').innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Distributing ${fileEntries.length} files...`;
-        const filled = parseAndDistributeFiles(fileEntries);
+        toast.querySelector('.toast-body').innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Searching with Orama (${fileEntries.length} files)...`;
+        const filled = await parseAndDistributeFiles(fileEntries);
         toast.remove();
         if (filled > 0) {
             showToast(`<i class="bi bi-check-circle-fill me-2"></i> Auto-filled ${filled} test files from zip!`, 'bg-success', 3000);
@@ -533,81 +533,199 @@ async function scanFileTree(queue, fileEntries) {
     }
 }
 
-function parseAndDistributeFiles(fileEntries) {
-    // Regex: hw1q2in3.txt  OR  hw1q2out3  (with or without extension)
-    const regex = /hw(\d+)q(\d+)(in|out)(\d+)/i;
+async function parseAndDistributeFiles(fileEntries) {
+    // ─── Step 1: Load Orama (lazy, cached) ────────────────────────────────
+    if (!window._orama) {
+        console.log('[Orama] Loading Orama from CDN...');
+        try {
+            const mod = await import('https://cdn.jsdelivr.net/npm/@orama/orama@3.1.18/+esm');
+            window._orama = mod;
+            console.log('[Orama] Loaded successfully (v3)');
+        } catch (e) {
+            console.error('[Orama] CDN load failed:', e);
+            // Graceful fallback to regex
+            return regexFallback(fileEntries);
+        }
+    }
 
-    // Step 1: Parse all files
+    const { create, insert, search } = window._orama;
+
+    // ─── Step 2: Create Orama DB and index all dropped files ──────────────
+    const db = create({
+        schema: {
+            fileName: 'string',     // full filename for searching
+            content: 'string',      // file content
+            fileIndex: 'number'     // index into fileEntries array
+        }
+    });
+
+    for (let i = 0; i < fileEntries.length; i++) {
+        insert(db, {
+            fileName: fileEntries[i].name,
+            content: fileEntries[i].content,
+            fileIndex: i
+        });
+    }
+
+    console.log(`[Orama] Indexed ${fileEntries.length} files into search DB`);
+
+    // ─── Step 3: Build slot catalog and search for matches ────────────────
+    // Collect unique (hw, q) from filenames for auto-tab creation.
+    // We scan a reasonable range of hw/q values, searching Orama for each.
+    const maxHw = 20;
+    const maxQ = 20;
+    const matched = []; // { hw, q, type, test, fileIndex, fileName, content, score }
+
+    for (let hw = 0; hw <= maxHw; hw++) {
+        for (let q = 1; q <= maxQ; q++) {
+            for (let t = 1; t <= testCasesCount; t++) {
+                // Search for input file: "hw{X}q{Y}in{Z}"
+                const inputQuery = `hw${hw}q${q}in${t}`;
+                const inputResult = search(db, {
+                    term: inputQuery,
+                    properties: ['fileName'],
+                    limit: 1
+                });
+
+                if (inputResult.count > 0) {
+                    const hit = inputResult.hits[0];
+                    // Validate: the filename must actually contain the pattern
+                    const fn = hit.document.fileName.toLowerCase();
+                    if (fn.includes(inputQuery.toLowerCase())) {
+                        matched.push({
+                            hw, q, type: 'input', test: t,
+                            fileIndex: hit.document.fileIndex,
+                            fileName: hit.document.fileName,
+                            content: fileEntries[hit.document.fileIndex].content,
+                            score: hit.score
+                        });
+                    }
+                }
+
+                // Search for expected file: "hw{X}q{Y}out{Z}"
+                const outputQuery = `hw${hw}q${q}out${t}`;
+                const outputResult = search(db, {
+                    term: outputQuery,
+                    properties: ['fileName'],
+                    limit: 1
+                });
+
+                if (outputResult.count > 0) {
+                    const hit = outputResult.hits[0];
+                    const fn = hit.document.fileName.toLowerCase();
+                    if (fn.includes(outputQuery.toLowerCase())) {
+                        matched.push({
+                            hw, q, type: 'expected', test: t,
+                            fileIndex: hit.document.fileIndex,
+                            fileName: hit.document.fileName,
+                            content: fileEntries[hit.document.fileIndex].content,
+                            score: hit.score
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    console.log(`[Orama] Matched ${matched.length} files via search:`,
+        matched.map(m => `${m.fileName} → HW${m.hw} Q${m.q} ${m.type} T${m.test} (score: ${m.score.toFixed(2)})`));
+
+    if (matched.length === 0) return 0;
+
+    // ─── Step 4: Auto-create tabs & subtabs ───────────────────────────────
+    const hwQPairs = new Map();
+    for (const m of matched) {
+        if (!hwQPairs.has(m.hw)) hwQPairs.set(m.hw, new Set());
+        hwQPairs.get(m.hw).add(m.q);
+    }
+
+    for (const [hw, qSet] of hwQPairs) {
+        ensureTabExists(hw);
+        for (const q of qSet) {
+            ensureQuestionExists(hw, q - 1);
+        }
+    }
+
+    // ─── Step 5: Fill test case slots (state + deferred UI) ───────────────
+    let filledCount = 0;
+    const uiUpdates = [];
+
+    for (const m of matched) {
+        const hwId = m.hw;
+        const qId = m.q - 1;
+        const t = m.test;
+
+        if (!state[hwId] || !state[hwId].questions[qId]) continue;
+        if (t < 1 || t > testCasesCount) continue;
+
+        state[hwId].questions[qId].tests[t][m.type] = m.content;
+        state[hwId].questions[qId].tests[t][m.type + 'Name'] = m.fileName;
+        filledCount++;
+        uiUpdates.push(m);
+    }
+
+    // Deferred UI update to avoid Bootstrap transition interference
+    setTimeout(() => {
+        for (const m of uiUpdates) {
+            updateFileUI(m.type, m.hw, m.q - 1, m.test, m.fileName);
+        }
+        console.log(`[Orama] UI updated for ${uiUpdates.length} slots`);
+    }, 50);
+
+    // Switch to first matched tab
+    const firstHw = matched[0].hw;
+    switchTab(firstHw);
+    const firstQ = matched[0].q - 1;
+    switchQuestion(firstHw, firstQ);
+
+    return filledCount;
+}
+
+// Regex fallback if Orama CDN fails to load
+function regexFallback(fileEntries) {
+    const regex = /hw(\d+)q(\d+)(in|out)(\d+)/i;
     const parsed = [];
     for (const file of fileEntries) {
         const match = file.name.match(regex);
         if (match) {
             parsed.push({
-                hw: parseInt(match[1]),
-                q: parseInt(match[2]),
+                hw: parseInt(match[1]), q: parseInt(match[2]),
                 type: match[3].toLowerCase() === 'in' ? 'input' : 'expected',
-                test: parseInt(match[4]),
-                name: file.name,
-                content: file.content
+                test: parseInt(match[4]), name: file.name, content: file.content
             });
-        } else {
-            console.log('[FolderUpload] Skipped (no regex match):', file.name);
         }
     }
-
-    console.log('[FolderUpload] Parsed files:', parsed.map(p => `${p.name} -> HW${p.hw} Q${p.q} ${p.type} T${p.test}`));
-
     if (parsed.length === 0) return 0;
 
-    // Step 2: Collect unique (hw, q) pairs and ensure tabs/subtabs exist
-    const hwQPairs = new Map(); // hw -> Set of q values
+    const hwQPairs = new Map();
     for (const p of parsed) {
         if (!hwQPairs.has(p.hw)) hwQPairs.set(p.hw, new Set());
         hwQPairs.get(p.hw).add(p.q);
     }
-
-    // Create missing HW tabs and Q subtabs
     for (const [hw, qSet] of hwQPairs) {
         ensureTabExists(hw);
-        for (const q of qSet) {
-            ensureQuestionExists(hw, q - 1); // file Q1 = internal qId 0
-        }
+        for (const q of qSet) ensureQuestionExists(hw, q - 1);
     }
 
-    // Step 3: Fill test case slots
     let filledCount = 0;
-    const failedSlots = [];
+    const uiUpdates = [];
     for (const p of parsed) {
-        const hwId = p.hw;
-        const qId = p.q - 1; // file Q1 = internal index 0
-        const t = p.test;
-
-        if (!state[hwId] || !state[hwId].questions[qId]) { console.warn(`[FolderUpload] No state for HW${hwId} Q${qId}`); continue; }
-        if (t < 1 || t > testCasesCount) { console.warn(`[FolderUpload] Test ${t} out of range for ${p.name}`); continue; }
-
-        state[hwId].questions[qId].tests[t][p.type] = p.content;
-        state[hwId].questions[qId].tests[t][p.type + 'Name'] = p.name;
+        const qId = p.q - 1, t = p.test;
+        if (!state[p.hw]?.questions[qId]) continue;
+        if (t < 1 || t > testCasesCount) continue;
+        state[p.hw].questions[qId].tests[t][p.type] = p.content;
+        state[p.hw].questions[qId].tests[t][p.type + 'Name'] = p.name;
         filledCount++;
-
-        // Track for deferred UI update
-        failedSlots.push(p);
+        uiUpdates.push(p);
     }
-
-    // Deferred UI update: wait a tick for Bootstrap tab transitions to finish
-    // before touching the dropzone DOM elements
     setTimeout(() => {
-        for (const p of failedSlots) {
-            updateFileUI(p.type, p.hw, p.q - 1, p.test, p.name);
-        }
-        console.log('[FolderUpload] UI updated for all', failedSlots.length, 'slots');
+        for (const p of uiUpdates) updateFileUI(p.type, p.hw, p.q - 1, p.test, p.name);
     }, 50);
 
-    // Switch to the first filled HW tab
-    const firstHw = parsed[0].hw;
-    switchTab(firstHw);
-    const firstQ = parsed[0].q - 1;
-    switchQuestion(firstHw, firstQ);
-
+    if (parsed.length > 0) {
+        switchTab(parsed[0].hw);
+        switchQuestion(parsed[0].hw, parsed[0].q - 1);
+    }
     return filledCount;
 }
 
