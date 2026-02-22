@@ -9,6 +9,109 @@ let worker;
 let messageCallbacks = {};
 let messageId = 0;
 
+// Code editor instances
+const editorInstances = {};
+
+function switchCodeMode(mode, hwId, qId) {
+    const uploadPane = document.getElementById(`code-upload-pane-${hwId}-${qId}`);
+    const editorPane = document.getElementById(`code-editor-pane-${hwId}-${qId}`);
+    const uploadBtn = document.getElementById(`code-mode-upload-${hwId}-${qId}`);
+    const editorBtn = document.getElementById(`code-mode-editor-${hwId}-${qId}`);
+
+    if (mode === 'editor') {
+        uploadPane.classList.add('d-none');
+        editorPane.classList.remove('d-none');
+        uploadBtn.className = 'btn btn-sm btn-outline-light fw-semibold';
+        editorBtn.className = 'btn btn-sm btn-light fw-semibold active';
+        initCodeEditor(hwId, qId);
+    } else {
+        editorPane.classList.add('d-none');
+        uploadPane.classList.remove('d-none');
+        editorBtn.className = 'btn btn-sm btn-outline-light fw-semibold';
+        uploadBtn.className = 'btn btn-sm btn-light fw-semibold active';
+    }
+}
+
+function initCodeEditor(hwId, qId) {
+    const key = `${hwId}-${qId}`;
+    if (editorInstances[key]) return; // already initialized
+
+    const container = document.getElementById(`code-editor-${hwId}-${qId}`);
+    const existingCode = state[hwId]?.questions?.[qId]?.code || '';
+
+    container.innerHTML = `
+        <div class="code-editor-wrapper">
+            <div class="code-editor-toolbar">
+                <span class="code-editor-dot" style="background:#ff5f57;"></span>
+                <span class="code-editor-dot" style="background:#febc2e;"></span>
+                <span class="code-editor-dot" style="background:#28c840;"></span>
+                <span class="code-editor-filename">hw${hwId}_q${qId + 1}.py</span>
+                <span class="code-editor-lang">Python</span>
+            </div>
+            <div class="code-editor-body">
+                <div class="code-editor-lines" id="code-lines-${hwId}-${qId}">1</div>
+                <textarea class="code-editor-textarea" id="code-textarea-${hwId}-${qId}" 
+                    spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"
+                    placeholder="# Write your Python code here...">${existingCode}</textarea>
+            </div>
+        </div>
+    `;
+
+    const textarea = document.getElementById(`code-textarea-${hwId}-${qId}`);
+    const linesEl = document.getElementById(`code-lines-${hwId}-${qId}`);
+
+    function updateLineNumbers() {
+        const lines = textarea.value.split('\n').length;
+        linesEl.innerHTML = Array.from({ length: lines }, (_, i) => i + 1).join('<br>');
+    }
+
+    let resetDebounce = null;
+    function syncState() {
+        state[hwId].questions[qId].code = textarea.value;
+        state[hwId].questions[qId].codeName = `hw${hwId}_q${qId + 1}.py`;
+        // Debounced reset of test results when code changes
+        clearTimeout(resetDebounce);
+        resetDebounce = setTimeout(() => resetTestResults(hwId, qId), 500);
+    }
+
+    textarea.addEventListener('input', () => {
+        updateLineNumbers();
+        syncState();
+    });
+
+    textarea.addEventListener('scroll', () => {
+        linesEl.scrollTop = textarea.scrollTop;
+    });
+
+    // Tab key inserts 4 spaces
+    textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            textarea.value = textarea.value.substring(0, start) + '    ' + textarea.value.substring(end);
+            textarea.selectionStart = textarea.selectionEnd = start + 4;
+            updateLineNumbers();
+            syncState();
+        }
+        // Auto-indent on Enter
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const start = textarea.selectionStart;
+            const currentLine = textarea.value.substring(0, start).split('\n').pop();
+            const indent = currentLine.match(/^\s*/)[0];
+            const extra = currentLine.trimEnd().endsWith(':') ? '    ' : '';
+            textarea.setRangeText('\n' + indent + extra, start, textarea.selectionEnd, 'end');
+            updateLineNumbers();
+            syncState();
+        }
+    });
+
+    updateLineNumbers();
+    if (existingCode) syncState();
+    editorInstances[key] = true;
+}
+
 function initWorker() {
     worker = new Worker("pyodide_worker.js");
     worker.onmessage = (event) => {
@@ -101,8 +204,9 @@ function renderTabLink(hwId, tabName) {
 function renderTabContent(hwId) {
     const contentContainer = document.getElementById("tab-content-container");
 
+    const isFirst = contentContainer.querySelectorAll('.tab-pane').length === 0;
     const pane = document.createElement('div');
-    pane.className = 'tab-pane fade';
+    pane.className = isFirst ? 'tab-pane fade show active' : 'tab-pane fade';
     pane.id = `tab-${hwId}-pane`;
     pane.role = 'tabpanel';
     pane.setAttribute('aria-labelledby', `tab-${hwId}-link`);
@@ -202,8 +306,11 @@ function renderQuestionTabLink(hwId, qId, qName) {
     li.role = 'presentation';
     li.id = `q-tab-${hwId}-${qId}-li`;
 
+    const isFirstQ = qTabsContainer.querySelectorAll('.nav-link.subtab-link').length === 0;
+    const activeClass = isFirstQ ? 'nav-link subtab-link pe-4 active' : 'nav-link subtab-link pe-4';
+
     li.innerHTML = `
-        <button class="nav-link subtab-link pe-4" id="q-tab-${hwId}-${qId}-link" data-bs-toggle="pill" data-bs-target="#q-pane-${hwId}-${qId}" type="button" role="tab">
+        <button class="${activeClass}" id="q-tab-${hwId}-${qId}-link" data-bs-toggle="pill" data-bs-target="#q-pane-${hwId}-${qId}" type="button" role="tab">
             <i class="bi bi-question-circle me-1"></i>${qName}
         </button>
         <span class="subtab-close-btn" onclick="event.stopPropagation(); deleteQuestion(${hwId}, ${qId})" title="Close Question">&times;</span>
@@ -246,27 +353,39 @@ function renderQuestionContent(hwId, qId) {
     const qContentContainer = document.getElementById(`q-content-${hwId}`);
     const modalsContainer = document.getElementById("modals-container");
 
+    const isFirstQ = qContentContainer.querySelectorAll('.tab-pane').length === 0;
     const pane = document.createElement('div');
-    pane.className = 'tab-pane fade';
+    pane.className = isFirstQ ? 'tab-pane fade show active' : 'tab-pane fade';
     pane.id = `q-pane-${hwId}-${qId}`;
     pane.role = 'tabpanel';
     pane.setAttribute('aria-labelledby', `q-tab-${hwId}-${qId}-link`);
 
     let html = `
         <div class="row">
-            <!-- Code Upload -->
+            <!-- Code Upload / Editor -->
             <div class="col-12 mb-4">
                 <div class="card shadow-sm border-0">
-                    <div class="card-header bg-primary text-white d-flex align-items-center py-3">
-                        <div class="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center me-3 shadow-sm" style="width: 40px; height: 40px;">
-                            <i class="bi bi-filetype-py fs-4"></i>
+                    <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between py-3">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center me-3 shadow-sm" style="width: 40px; height: 40px;">
+                                <i class="bi bi-filetype-py fs-4"></i>
+                            </div>
+                            <div>
+                                <h5 class="card-title mb-0 fw-bold">Python Code</h5>
+                                <small class="text-white text-opacity-75">HW${hwId} · Q${qId + 1}</small>
+                            </div>
                         </div>
-                        <div>
-                            <h5 class="card-title mb-0 fw-bold">Python Code</h5>
-                            <small class="text-white text-opacity-75">Upload .py for HW${hwId} · Q${qId + 1}</small>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-light fw-semibold" id="code-mode-upload-${hwId}-${qId}" onclick="switchCodeMode('upload', ${hwId}, ${qId})">
+                                <i class="bi bi-cloud-arrow-up me-1"></i> Upload File
+                            </button>
+                            <button type="button" class="btn btn-sm btn-light fw-semibold active" id="code-mode-editor-${hwId}-${qId}" onclick="switchCodeMode('editor', ${hwId}, ${qId})">
+                                <i class="bi bi-code-slash me-1"></i> Write Code
+                            </button>
                         </div>
                     </div>
-                    <div class="card-body bg-white p-4">
+                    <!-- Upload mode (hidden by default) -->
+                    <div class="card-body bg-white p-4 d-none" id="code-upload-pane-${hwId}-${qId}">
                         <input type="file" id="file-code-${hwId}-${qId}" accept=".py" style="display:none;" onchange="handleFileInput(this, 'code', ${hwId}, null, ${qId})">
                         <div id="code-drop-area-${hwId}-${qId}" class="drop-area mb-2 fs-5 p-5 text-secondary" onclick="document.getElementById('file-code-${hwId}-${qId}').click()">
                             <div>
@@ -275,6 +394,10 @@ function renderQuestionContent(hwId, qId) {
                                 <span class="fs-6 fw-normal opacity-75">or Click to Browse</span>
                             </div>
                         </div>
+                    </div>
+                    <!-- Editor mode (shown by default) -->
+                    <div class="card-body p-0" id="code-editor-pane-${hwId}-${qId}">
+                        <div id="code-editor-${hwId}-${qId}" class="code-editor-container" style="min-height: 300px;"></div>
                     </div>
                 </div>
             </div>
@@ -287,77 +410,78 @@ function renderQuestionContent(hwId, qId) {
                 </div>
     `;
 
+
     let modalsHtml = "";
 
     for (let t = 1; t <= testCasesCount; t++) {
         html += `
-            <div class="card mb-3 shadow-sm border-0 bg-transparent overflow-visible">
-                <div class="card-body bg-white rounded p-4">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="card-title mb-0 text-primary fw-bold text-uppercase" style="letter-spacing: 1px; font-size: 0.85rem;">Test Case ${t}</h6>
-                    </div>
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <input type="file" id="file-input-${hwId}-${qId}-${t}" accept=".txt" style="display:none;" onchange="handleFileInput(this, 'input', ${hwId}, ${t}, ${qId})">
+        <div class="card mb-3 shadow-sm border-0 bg-transparent overflow-visible">
+            <div class="card-body bg-white rounded p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="card-title mb-0 text-primary fw-bold text-uppercase" style="letter-spacing: 1px; font-size: 0.85rem;">Test Case ${t}</h6>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <input type="file" id="file-input-${hwId}-${qId}-${t}" accept=".txt" style="display:none;" onchange="handleFileInput(this, 'input', ${hwId}, ${t}, ${qId})">
                             <div id="input-drop-area-${hwId}-${qId}-${t}" class="drop-area p-3 text-secondary h-100 small" onclick="document.getElementById('file-input-${hwId}-${qId}-${t}').click()">
                                 <div><i class="bi bi-file-earmark-text fs-4 mb-1 d-block"></i> Input File<br><code class="text-muted" style="font-size: 0.7rem;">hw${hwId}q${qId + 1}in${t}</code></div>
                             </div>
-                        </div>
-                        <div class="col-md-6">
-                            <input type="file" id="file-expected-${hwId}-${qId}-${t}" accept=".txt" style="display:none;" onchange="handleFileInput(this, 'expected', ${hwId}, ${t}, ${qId})">
+                    </div>
+                    <div class="col-md-6">
+                        <input type="file" id="file-expected-${hwId}-${qId}-${t}" accept=".txt" style="display:none;" onchange="handleFileInput(this, 'expected', ${hwId}, ${t}, ${qId})">
                             <div id="expected-drop-area-${hwId}-${qId}-${t}" class="drop-area p-3 text-secondary h-100 small" onclick="document.getElementById('file-expected-${hwId}-${qId}-${t}').click()">
                                 <div><i class="bi bi-file-earmark-check fs-4 mb-1 d-block"></i> Expected File<br><code class="text-muted" style="font-size: 0.7rem;">hw${hwId}q${qId + 1}out${t}</code></div>
                             </div>
-                        </div>
-                    </div>
-                    <div id="diff-result-${hwId}-${qId}-${t}" class="result mt-2 py-3 px-4 bg-light rounded d-flex justify-content-between align-items-center border-0 shadow-sm">
-                        <div class="d-flex align-items-center">
-                            <div class="bg-white border rounded-circle d-flex align-items-center justify-content-center me-3 shadow-sm" style="width: 32px; height: 32px;">
-                                <i class="bi bi-activity text-secondary"></i>
-                            </div>
-                            <div>
-                                <small class="text-muted d-block text-uppercase" style="font-size: 0.7rem; font-weight: 700; letter-spacing: 0.5px;">Result</small>
-                                <span id="diff-status-${hwId}-${qId}-${t}" class="fw-bold text-dark" style="font-size: 1.05rem;">Not Run</span>
-                            </div>
-                        </div>
-                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#diffModal-${hwId}-${qId}-${t}">
-                            <i class="bi bi-eye me-1"></i> View Diff
-                        </button>
                     </div>
                 </div>
+                <div id="diff-result-${hwId}-${qId}-${t}" class="result mt-2 py-3 px-4 bg-light rounded d-flex justify-content-between align-items-center border-0 shadow-sm">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-white border rounded-circle d-flex align-items-center justify-content-center me-3 shadow-sm" style="width: 32px; height: 32px;">
+                            <i class="bi bi-activity text-secondary"></i>
+                        </div>
+                        <div>
+                            <small class="text-muted d-block text-uppercase" style="font-size: 0.7rem; font-weight: 700; letter-spacing: 0.5px;">Result</small>
+                            <span id="diff-status-${hwId}-${qId}-${t}" class="fw-bold text-dark" style="font-size: 1.05rem;">Not Run</span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#diffModal-${hwId}-${qId}-${t}">
+                        <i class="bi bi-eye me-1"></i> View Diff
+                    </button>
+                </div>
+            </div>
             </div>
         `;
 
         modalsHtml += `
         <div class="modal fade" id="diffModal-${hwId}-${qId}-${t}" tabindex="-1" aria-hidden="true">
-          <div class="modal-dialog modal-xl modal-dialog-scrollable">
-            <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
-              <div class="modal-header bg-white border-bottom position-sticky top-0 z-1 py-3 px-4">
-                <h5 class="modal-title text-primary fw-bold d-flex align-items-center">
-                    <i class="bi bi-distribute-vertical fs-4 me-2 bg-primary bg-opacity-10 rounded p-2"></i>
-                    Diff for HW${hwId} · Q${qId + 1} - Test Case ${t}
-                </h5>
-                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
-              </div>
-              <div class="modal-body bg-light p-4">
-                <div class="diff-table-wrapper shadow-sm border" id="diff-content-${hwId}-${qId}-${t}">
-                    <div class="text-center py-5 text-muted">
-                        <div class="bg-white rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm mb-3" style="width: 80px; height: 80px;">
-                            <i class="bi bi-code-slash display-4 pb-1 text-secondary opacity-50"></i>
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+                    <div class="modal-header bg-white border-bottom position-sticky top-0 z-1 py-3 px-4">
+                        <h5 class="modal-title text-primary fw-bold d-flex align-items-center">
+                            <i class="bi bi-distribute-vertical fs-4 me-2 bg-primary bg-opacity-10 rounded p-2"></i>
+                            Diff for HW${hwId} · Q${qId + 1} - Test Case ${t}
+                        </h5>
+                        <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body bg-light p-4">
+                        <div class="diff-table-wrapper shadow-sm border" id="diff-content-${hwId}-${qId}-${t}">
+                            <div class="text-center py-5 text-muted">
+                                <div class="bg-white rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm mb-3" style="width: 80px; height: 80px;">
+                                    <i class="bi bi-code-slash display-4 pb-1 text-secondary opacity-50"></i>
+                                </div>
+                                <h5 class="fw-semibold text-dark">No Diff Available</h5>
+                                <p class="mb-0">Run tests to generate the diff comparison table.</p>
+                            </div>
                         </div>
-                        <h5 class="fw-semibold text-dark">No Diff Available</h5>
-                        <p class="mb-0">Run tests to generate the diff comparison table.</p>
                     </div>
                 </div>
-              </div>
             </div>
-          </div>
         </div>
         `;
     }
 
     html += `
-            <div class="col-12 z-1 position-sticky bottom-0 bg-transparent pb-4 pt-3 d-flex justify-content-end pointer-events-none">
+        <div class="col-12 z-1 position-sticky bottom-0 bg-transparent pb-4 pt-3 d-flex justify-content-end pointer-events-none">
                 <button onclick="clearQuestion(${hwId}, ${qId})" class="btn btn-outline-danger btn-lg shadow-sm px-4 py-3 fw-bold me-3 pointer-events-auto" style="border-radius: 50px;">
                     <i class="bi bi-trash3-fill me-2"></i> Clear All Files
                 </button>
@@ -366,11 +490,13 @@ function renderQuestionContent(hwId, qId) {
                 </button>
             </div>
         </div>
-    `;
+        `;
 
     pane.innerHTML = html;
     qContentContainer.appendChild(pane);
     modalsContainer.insertAdjacentHTML('beforeend', modalsHtml);
+    // Auto-init the code editor since Write Code is the default mode
+    initCodeEditor(hwId, qId);
 }
 
 function switchQuestion(hwId, qId) {
@@ -627,8 +753,9 @@ async function parseAndDistributeFiles(fileEntries) {
         }
     }
 
-    console.log(`[Orama] Matched ${matched.length} files via search:`,
-        matched.map(m => `${m.fileName} → HW${m.hw} Q${m.q} ${m.type} T${m.test} (score: ${m.score.toFixed(2)})`));
+    console.log(`[Orama] Matched ${matched.length} files via search: `,
+        matched.map(m => `${m.fileName} → HW${m.hw} Q${m.q} ${m.type} T${m.test} (score: ${m.score.toFixed(2)
+            })`));
 
     if (matched.length === 0) return 0;
 
@@ -745,7 +872,7 @@ function updateFileUI(type, hwId, qId, t, name) {
     let dropArea = document.getElementById(`${type}-drop-area-${hwId}-${qId}-${t}`);
     if (dropArea) {
         dropArea.innerHTML = `
-            <div class="d-flex flex-column align-items-center text-success position-relative w-100 h-100 justify-content-center">
+    <div class="d-flex flex-column align-items-center text-success position-relative w-100 h-100 justify-content-center">
                 <button onclick="removeFile(event, '${type}', ${hwId}, ${qId}, ${t})" class="btn btn-sm btn-danger rounded-circle position-absolute top-0 end-0 m-1" title="Remove File" style="width: 24px; height: 24px; padding: 0;">
                     <i class="bi bi-x"></i>
                 </button>
@@ -809,6 +936,30 @@ function readFile(file) {
     });
 }
 
+// Reset all test result UIs for a question (called when code changes)
+function resetTestResults(hwId, qId) {
+    for (let t = 1; t <= testCasesCount; t++) {
+        const statusEl = document.getElementById(`diff-status-${hwId}-${qId}-${t}`);
+        const contentEl = document.getElementById(`diff-content-${hwId}-${qId}-${t}`);
+        if (statusEl) statusEl.innerHTML = 'Not Run';
+        if (contentEl) contentEl.innerHTML = `
+            <div class="text-center py-5 text-muted">
+                <div class="bg-white rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm mb-3" style="width: 80px; height: 80px;">
+                    <i class="bi bi-code-slash display-4 pb-1 text-secondary opacity-50"></i>
+                </div>
+                <h5 class="fw-semibold text-dark">No Diff Available</h5>
+                <p class="mb-0">Run tests to generate the diff comparison table.</p>
+            </div>`;
+    }
+    // Re-enable the execute button
+    const btn = document.getElementById(`run-button-${hwId}-${qId}`);
+    if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-primary');
+    }
+}
+
 async function handleCodeDrop(e, hwId, qId) {
     let dt = e.dataTransfer;
     let file = dt.files[0];
@@ -822,8 +973,9 @@ async function handleCodeDrop(e, hwId, qId) {
         let { name, content } = await readFile(file);
         state[hwId].questions[qId].code = content;
         state[hwId].questions[qId].codeName = name;
+        resetTestResults(hwId, qId);
         e.target.innerHTML = `
-            <div class="d-flex flex-column align-items-center text-success position-relative w-100 h-100 justify-content-center">
+    <div class="d-flex flex-column align-items-center text-success position-relative w-100 h-100 justify-content-center">
                 <button onclick="removeFile(event, 'code', ${hwId}, ${qId})" class="btn btn-sm btn-danger rounded-circle position-absolute top-0 end-0 m-2" title="Remove File" style="width: 28px; height: 28px; padding: 0;">
                     <i class="bi bi-x"></i>
                 </button>
@@ -850,7 +1002,7 @@ async function handleFileDrop(e, type, hwId, qId, t) {
         state[hwId].questions[qId].tests[t][type] = content;
         state[hwId].questions[qId].tests[t][type + 'Name'] = name;
         e.target.innerHTML = `
-            <div class="d-flex flex-column align-items-center text-success position-relative w-100 h-100 justify-content-center">
+    <div class="d-flex flex-column align-items-center text-success position-relative w-100 h-100 justify-content-center">
                 <button onclick="removeFile(event, '${type}', ${hwId}, ${qId}, ${t})" class="btn btn-sm btn-danger rounded-circle position-absolute top-0 end-0 m-1" title="Remove File" style="width: 24px; height: 24px; padding: 0;">
                     <i class="bi bi-x"></i>
                 </button>
@@ -893,11 +1045,12 @@ function removeFile(e, type, hwId, qId, t = null) {
     if (type === 'code') {
         state[hwId].questions[qId].code = null;
         state[hwId].questions[qId].codeName = null;
+        resetTestResults(hwId, qId);
 
         let dropArea = document.getElementById(`code-drop-area-${hwId}-${qId}`);
         dropArea.className = "drop-area mb-2 fs-5 p-5 text-secondary";
         dropArea.innerHTML = `
-            <div>
+    <div>
                 <i class="bi bi-cloud-arrow-up display-4 d-block mb-3 text-primary opacity-50"></i>
                 <span class="fw-semibold">Drag & Drop Python Code (.py)</span><br>
                 <span class="fs-6 fw-normal opacity-75">or Click to Browse</span>
@@ -920,7 +1073,7 @@ function removeFile(e, type, hwId, qId, t = null) {
 
         document.getElementById(`diff-status-${hwId}-${qId}-${t}`).innerHTML = 'Not Run';
         document.getElementById(`diff-content-${hwId}-${qId}-${t}`).innerHTML = `
-            <div class="text-center py-5 text-muted">
+    <div class="text-center py-5 text-muted">
                 <div class="bg-white rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm mb-3" style="width: 80px; height: 80px;">
                     <i class="bi bi-code-slash display-4 pb-1 text-secondary opacity-50"></i>
                 </div>
@@ -988,7 +1141,7 @@ async function runTestsForQuestion(hwId, qId) {
     }
 
     if (missingPairs.length > 0) {
-        alert(`For test case(s) ${missingPairs.join(', ')}, both input and expected output files must be provided.`);
+        alert(`For test case (s) ${missingPairs.join(', ')}, both input and expected output files must be provided.`);
         return;
     }
 
