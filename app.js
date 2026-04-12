@@ -156,6 +156,30 @@ function initWorker() {
 // ─── LOCALSTORAGE PERSISTENCE ────────────────────────────────────────────────
 
 let saveDebounce = null;
+function renameTab(hwId) {
+    const newName = prompt("Enter new name for homework tab:", state[hwId]?.name || `HW${hwId}`);
+    if (newName && newName.trim() !== "") {
+        state[hwId].name = newName.trim();
+        const btn = document.getElementById(`tab-${hwId}-link`);
+        if (btn) {
+            btn.innerHTML = `<i class="bi bi-folder2-open me-2"></i>${state[hwId].name}`;
+        }
+        saveState();
+    }
+}
+
+function renameQuestion(hwId, qId) {
+    const newName = prompt("Enter new name for question tab:", state[hwId]?.questions?.[qId]?.name || `Q${qId + 1}`);
+    if (newName && newName.trim() !== "") {
+        state[hwId].questions[qId].name = newName.trim();
+        const btn = document.getElementById(`q-tab-${hwId}-${qId}-link`);
+        if (btn) {
+            btn.innerHTML = `<i class="bi bi-question-circle me-1"></i>${state[hwId].questions[qId].name}`;
+        }
+        saveState();
+    }
+}
+
 function saveState() {
     clearTimeout(saveDebounce);
     saveDebounce = setTimeout(() => {
@@ -189,8 +213,8 @@ function loadState() {
             const hwId = parseInt(hwIdStr);
             const hw = data.state[hwId];
 
-            state[hwId] = { questionCount: hw.questionCount || 0, questions: {} };
-            renderTabLink(hwId, `HW${hwId}`);
+            state[hwId] = { name: hw.name || `HW${hwId}`, questionCount: hw.questionCount || 0, questions: {} };
+            renderTabLink(hwId, state[hwId].name);
             renderTabContent(hwId);
 
             for (const qIdStr of Object.keys(hw.questions)) {
@@ -200,6 +224,7 @@ function loadState() {
 
                 // Initialize question state with saved data
                 state[hwId].questions[qId] = {
+                    name: q.name || qName,
                     code: q.code || null,
                     codeName: q.codeName || null,
                     codeMode: q.codeMode || 'editor',
@@ -214,7 +239,7 @@ function loadState() {
                     };
                 }
 
-                renderQuestionTabLink(hwId, qId, qName);
+                renderQuestionTabLink(hwId, qId, state[hwId].questions[qId].name);
                 renderQuestionContent(hwId, qId);
                 setupDragAndDropForQuestion(hwId, qId);
 
@@ -323,7 +348,7 @@ function addNewTab(forceHwId = null) {
     if (hwId >= tabCount) tabCount = hwId + 1;
     const tabName = `HW${hwId}`;
 
-    state[hwId] = { questionCount: 0, questions: {} };
+    state[hwId] = { name: tabName, questionCount: 0, questions: {} };
 
     renderTabLink(hwId, tabName);
     renderTabContent(hwId);
@@ -348,7 +373,7 @@ function renderTabLink(hwId, tabName) {
     li.id = `tab-${hwId}-li`;
 
     li.innerHTML = `
-        <button class="nav-link pe-4" id="tab-${hwId}-link" data-bs-toggle="tab" data-bs-target="#tab-${hwId}-pane" type="button" role="tab" aria-controls="tab-${hwId}-pane" aria-selected="false">
+        <button class="nav-link pe-4" id="tab-${hwId}-link" data-bs-toggle="tab" data-bs-target="#tab-${hwId}-pane" type="button" role="tab" aria-controls="tab-${hwId}-pane" aria-selected="false" ondblclick="renameTab(${hwId})" title="Double click to rename">
             <i class="bi bi-folder2-open me-2"></i>${tabName}
         </button>
         <span class="tab-close-btn" onclick="event.stopPropagation(); deleteTab(${hwId})" title="Close Tab">&times;</span>
@@ -443,7 +468,7 @@ function addQuestion(hwId, forceQId = null) {
     if (qId >= state[hwId].questionCount) state[hwId].questionCount = qId + 1;
     const qName = `Q${qId + 1}`;
 
-    state[hwId].questions[qId] = { code: null, codeName: null, codeMode: 'editor', tests: {} };
+    state[hwId].questions[qId] = { name: qName, code: null, codeName: null, codeMode: 'editor', tests: {} };
     for (let t = 1; t <= testCasesCount; t++) {
         state[hwId].questions[qId].tests[t] = { input: null, inputName: null, expected: null, expectedName: null };
     }
@@ -469,7 +494,7 @@ function renderQuestionTabLink(hwId, qId, qName) {
     const activeClass = isFirstQ ? 'nav-link subtab-link pe-4 active' : 'nav-link subtab-link pe-4';
 
     li.innerHTML = `
-        <button class="${activeClass}" id="q-tab-${hwId}-${qId}-link" data-bs-toggle="pill" data-bs-target="#q-pane-${hwId}-${qId}" type="button" role="tab">
+        <button class="${activeClass}" id="q-tab-${hwId}-${qId}-link" data-bs-toggle="pill" data-bs-target="#q-pane-${hwId}-${qId}" type="button" role="tab" ondblclick="renameQuestion(${hwId}, ${qId})" title="Double click to rename">
             <i class="bi bi-question-circle me-1"></i>${qName}
         </button>
         <span class="subtab-close-btn" onclick="event.stopPropagation(); deleteQuestion(${hwId}, ${qId})" title="Close Question">&times;</span>
