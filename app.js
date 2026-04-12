@@ -17,23 +17,44 @@ function switchCodeMode(mode, hwId, qId) {
     const editorPane = document.getElementById(`code-editor-pane-${hwId}-${qId}`);
     const uploadBtn = document.getElementById(`code-mode-upload-${hwId}-${qId}`);
     const editorBtn = document.getElementById(`code-mode-editor-${hwId}-${qId}`);
+    const downloadBtn = document.getElementById(`code-mode-download-${hwId}-${qId}`);
 
     if (mode === 'editor') {
         uploadPane.classList.add('d-none');
         editorPane.classList.remove('d-none');
         uploadBtn.className = 'btn btn-sm btn-outline-light fw-semibold';
         editorBtn.className = 'btn btn-sm btn-light fw-semibold active';
+        if (downloadBtn) downloadBtn.classList.remove('d-none');
         initCodeEditor(hwId, qId);
     } else {
         editorPane.classList.add('d-none');
         uploadPane.classList.remove('d-none');
         editorBtn.className = 'btn btn-sm btn-outline-light fw-semibold';
         uploadBtn.className = 'btn btn-sm btn-light fw-semibold active';
+        if (downloadBtn) downloadBtn.classList.add('d-none');
     }
     if (state[hwId]?.questions[qId]) {
         state[hwId].questions[qId].codeMode = mode;
         saveState();
     }
+}
+
+function downloadCode(hwId, qId) {
+    const q = state[hwId]?.questions?.[qId];
+    if (!q || (!q.code && !q.codeName)) {
+        alert('No code to download!');
+        return;
+    }
+    const filename = q.codeName || `hw${hwId}_q${qId + 1}.py`;
+    const blob = new Blob([q.code || ''], { type: 'text/x-python' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 function initCodeEditor(hwId, qId) {
@@ -520,6 +541,9 @@ function renderQuestionContent(hwId, qId) {
                             </button>
                             <button type="button" class="btn btn-sm btn-light fw-semibold active" id="code-mode-editor-${hwId}-${qId}" onclick="switchCodeMode('editor', ${hwId}, ${qId})">
                                 <i class="bi bi-code-slash me-1"></i> Write Code
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-light fw-semibold border-start border-start-white border-opacity-25" id="code-mode-download-${hwId}-${qId}" onclick="downloadCode(${hwId}, ${qId})" title="Download .py file">
+                                <i class="bi bi-download"></i>
                             </button>
                         </div>
                     </div>
