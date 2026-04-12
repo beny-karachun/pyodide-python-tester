@@ -45,7 +45,7 @@ function downloadCode(hwId, qId) {
         alert('No code to download!');
         return;
     }
-    const filename = q.codeName || `hw${hwId}_q${qId + 1}.py`;
+    const filename = q.codeName || `hw${hwId}q${qId + 1}.py`;
     const blob = new Blob([q.code || ''], { type: 'text/x-python' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -70,7 +70,7 @@ function initCodeEditor(hwId, qId) {
                 <span class="code-editor-dot" style="background:#ff5f57;"></span>
                 <span class="code-editor-dot" style="background:#febc2e;"></span>
                 <span class="code-editor-dot" style="background:#28c840;"></span>
-                <span class="code-editor-filename">hw${hwId}_q${qId + 1}.py</span>
+                <span class="code-editor-filename">hw${hwId}q${qId + 1}.py</span>
                 <span class="code-editor-lang">Python</span>
             </div>
             <div class="code-editor-body">
@@ -93,7 +93,7 @@ function initCodeEditor(hwId, qId) {
     let resetDebounce = null;
     function syncState() {
         state[hwId].questions[qId].code = textarea.value;
-        state[hwId].questions[qId].codeName = `hw${hwId}_q${qId + 1}.py`;
+        state[hwId].questions[qId].codeName = `hw${hwId}q${qId + 1}.py`;
         // Debounced reset of test results when code changes
         clearTimeout(resetDebounce);
         resetDebounce = setTimeout(() => resetTestResults(hwId, qId), 500);
