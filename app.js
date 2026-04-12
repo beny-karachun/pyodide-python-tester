@@ -160,10 +160,8 @@ function renameTab(hwId) {
     const newName = prompt("Enter new name for homework tab:", state[hwId]?.name || `HW${hwId}`);
     if (newName && newName.trim() !== "") {
         state[hwId].name = newName.trim();
-        const btn = document.getElementById(`tab-${hwId}-link`);
-        if (btn) {
-            btn.innerHTML = `<i class="bi bi-folder2-open me-2"></i>${state[hwId].name}`;
-        }
+        const textSpan = document.getElementById(`tab-${hwId}-text`);
+        if (textSpan) textSpan.innerText = state[hwId].name;
         saveState();
     }
 }
@@ -172,10 +170,8 @@ function renameQuestion(hwId, qId) {
     const newName = prompt("Enter new name for question tab:", state[hwId]?.questions?.[qId]?.name || `Q${qId + 1}`);
     if (newName && newName.trim() !== "") {
         state[hwId].questions[qId].name = newName.trim();
-        const btn = document.getElementById(`q-tab-${hwId}-${qId}-link`);
-        if (btn) {
-            btn.innerHTML = `<i class="bi bi-question-circle me-1"></i>${state[hwId].questions[qId].name}`;
-        }
+        const textSpan = document.getElementById(`q-tab-${hwId}-${qId}-text`);
+        if (textSpan) textSpan.innerText = state[hwId].questions[qId].name;
         saveState();
     }
 }
@@ -373,8 +369,10 @@ function renderTabLink(hwId, tabName) {
     li.id = `tab-${hwId}-li`;
 
     li.innerHTML = `
-        <button class="nav-link pe-4" id="tab-${hwId}-link" data-bs-toggle="tab" data-bs-target="#tab-${hwId}-pane" type="button" role="tab" aria-controls="tab-${hwId}-pane" aria-selected="false" ondblclick="renameTab(${hwId})" title="Double click to rename">
-            <i class="bi bi-folder2-open me-2"></i>${tabName}
+        <button class="nav-link pe-4 d-flex align-items-center" id="tab-${hwId}-link" data-bs-toggle="tab" data-bs-target="#tab-${hwId}-pane" type="button" role="tab" aria-controls="tab-${hwId}-pane" aria-selected="false">
+            <i class="bi bi-folder2-open me-2"></i>
+            <span id="tab-${hwId}-text">${tabName}</span>
+            <i class="bi bi-pencil-square ms-2 opacity-50" style="font-size: 0.85rem; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.classList.remove('opacity-50')" onmouseout="this.classList.add('opacity-50')" onclick="event.stopPropagation(); renameTab(${hwId})" title="Rename Homework"></i>
         </button>
         <span class="tab-close-btn" onclick="event.stopPropagation(); deleteTab(${hwId})" title="Close Tab">&times;</span>
     `;
@@ -494,8 +492,10 @@ function renderQuestionTabLink(hwId, qId, qName) {
     const activeClass = isFirstQ ? 'nav-link subtab-link pe-4 active' : 'nav-link subtab-link pe-4';
 
     li.innerHTML = `
-        <button class="${activeClass}" id="q-tab-${hwId}-${qId}-link" data-bs-toggle="pill" data-bs-target="#q-pane-${hwId}-${qId}" type="button" role="tab" ondblclick="renameQuestion(${hwId}, ${qId})" title="Double click to rename">
-            <i class="bi bi-question-circle me-1"></i>${qName}
+        <button class="${activeClass} d-flex align-items-center" id="q-tab-${hwId}-${qId}-link" data-bs-toggle="pill" data-bs-target="#q-pane-${hwId}-${qId}" type="button" role="tab">
+            <i class="bi bi-question-circle me-1"></i>
+            <span id="q-tab-${hwId}-${qId}-text">${qName}</span>
+            <i class="bi bi-pencil-square ms-2 opacity-50" style="font-size: 0.85rem; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.classList.remove('opacity-50')" onmouseout="this.classList.add('opacity-50')" onclick="event.stopPropagation(); renameQuestion(${hwId}, ${qId})" title="Rename Question"></i>
         </button>
         <span class="subtab-close-btn" onclick="event.stopPropagation(); deleteQuestion(${hwId}, ${qId})" title="Close Question">&times;</span>
     `;
