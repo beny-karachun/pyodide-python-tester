@@ -471,6 +471,18 @@ table.diff td {
     }
 }
 
+/* Bouncing arrow pointing to Tutorial Video button */
+.tutorial-arrow-hint {
+    font-size: 1.2rem;
+    animation: bounce-right 1.2s ease-in-out infinite;
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5));
+}
+
+@keyframes bounce-right {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(6px); }
+}
+
 /* ─── Code Editor (VS Code Style) ──────────────────────────────── */
 .code-editor-wrapper {
     border-radius: 0 0 12px 12px;

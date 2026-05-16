@@ -22,6 +22,8 @@ const TRANSLATIONS = {
         'tutorial.bulk.link': '🧬 Wanna know how? It\'s not what you think!',
         'tutorial.privacy.title': '100% Private',
         'tutorial.privacy.desc': 'Everything runs <strong>locally in your browser</strong> via WebAssembly (Pyodide). No data is sent to any server. Your code never leaves your machine.',
+        'tutorial.video.btn': 'Tutorial Video',
+        'tutorial.video.title': 'Video Tutorial',
 
         // Dynamic UI
         'ui.execute': 'Execute All',
@@ -61,6 +63,8 @@ const TRANSLATIONS = {
         'tutorial.bulk.link': '🧬 רוצים לדעת איך? זה לא מה שחשבתם!',
         'tutorial.privacy.title': '100% פרטי',
         'tutorial.privacy.desc': 'הכל רץ <strong>מקומית בדפדפן שלכם</strong> באמצעות WebAssembly (Pyodide). אין שליחת נתונים לשרת. הקוד שלכם לעולם לא עוזב את המחשב.',
+        'tutorial.video.btn': 'סרטון הדרכה',
+        'tutorial.video.title': 'סרטון הדרכה',
 
         // Dynamic UI
         'ui.execute': 'הרץ הכל',

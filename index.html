@@ -70,7 +70,16 @@
                     <i class="bi bi-book-half fs-4 me-3"></i>
                     <h5 class="mb-0 fw-bold" data-i18n="tutorial.title">How to Use This Tool</h5>
                 </div>
-                <i class="bi bi-chevron-down text-white-50 fs-5 tutorial-chevron"></i>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="tutorial-arrow-hint d-none d-sm-inline-block">👉</span>
+                    <button class="btn btn-sm btn-warning fw-bold rounded-pill px-3 py-1 d-flex align-items-center shadow-sm" 
+                        data-bs-toggle="modal" data-bs-target="#video-tutorial-modal" 
+                        onclick="event.stopPropagation()" title="Watch Video Tutorial"
+                        style="font-size: 0.85rem; letter-spacing: 0.3px;">
+                        <i class="bi bi-play-circle-fill me-1"></i> <span data-i18n="tutorial.video.btn">Tutorial Video</span>
+                    </button>
+                    <i class="bi bi-chevron-down text-white-50 fs-5 tutorial-chevron"></i>
+                </div>
             </div>
             <div class="collapse show" id="tutorial-body">
                 <div class="card-body px-4 py-4">
@@ -203,6 +212,27 @@
 
         <div class="tab-content" id="tab-content-container">
             <!-- Tab panes generated dynamically by JS -->
+        </div>
+    </div>
+
+    <!-- Video Tutorial Modal -->
+    <div class="modal fade" id="video-tutorial-modal" tabindex="-1" aria-labelledby="videoTutorialLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden; background: #000;">
+                <div class="modal-header border-0 py-2 px-4" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                    <h5 class="modal-title text-white fw-bold d-flex align-items-center" id="videoTutorialLabel">
+                        <i class="bi bi-play-circle-fill me-2 fs-4"></i>
+                        <span data-i18n="tutorial.video.title">Video Tutorial</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <video id="tutorial-video" class="w-100" style="display: block; max-height: 80vh;" controls>
+                        <source src="tutorial.mp4" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -350,6 +380,12 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="app.js"></script>
+    <script>
+        // Pause video when tutorial modal is closed
+        document.getElementById('video-tutorial-modal').addEventListener('hidden.bs.modal', () => {
+            document.getElementById('tutorial-video').pause();
+        });
+    </script>
 </body>
 
 </html>
