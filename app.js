@@ -9,6 +9,10 @@ let worker;
 let messageCallbacks = {};
 let messageId = 0;
 
+// Display number helpers — hwNum/qNum override the default numbering
+function getHwNum(hwId) { return state[hwId]?.hwNum ?? hwId; }
+function getQNum(hwId, qId) { return state[hwId]?.questions?.[qId]?.qNum ?? (qId + 1); }
+
 // Code editor instances
 const editorInstances = {};
 
@@ -17,44 +21,23 @@ function switchCodeMode(mode, hwId, qId) {
     const editorPane = document.getElementById(`code-editor-pane-${hwId}-${qId}`);
     const uploadBtn = document.getElementById(`code-mode-upload-${hwId}-${qId}`);
     const editorBtn = document.getElementById(`code-mode-editor-${hwId}-${qId}`);
-    const downloadBtn = document.getElementById(`code-mode-download-${hwId}-${qId}`);
 
     if (mode === 'editor') {
         uploadPane.classList.add('d-none');
         editorPane.classList.remove('d-none');
         uploadBtn.className = 'btn btn-sm btn-outline-light fw-semibold';
         editorBtn.className = 'btn btn-sm btn-light fw-semibold active';
-        if (downloadBtn) downloadBtn.classList.remove('d-none');
         initCodeEditor(hwId, qId);
     } else {
         editorPane.classList.add('d-none');
         uploadPane.classList.remove('d-none');
         editorBtn.className = 'btn btn-sm btn-outline-light fw-semibold';
         uploadBtn.className = 'btn btn-sm btn-light fw-semibold active';
-        if (downloadBtn) downloadBtn.classList.add('d-none');
     }
     if (state[hwId]?.questions[qId]) {
         state[hwId].questions[qId].codeMode = mode;
         saveState();
     }
-}
-
-function downloadCode(hwId, qId) {
-    const q = state[hwId]?.questions?.[qId];
-    if (!q || (!q.code && !q.codeName)) {
-        alert('No code to download!');
-        return;
-    }
-    const filename = q.codeName || `hw${hwId}q${qId + 1}.py`;
-    const blob = new Blob([q.code || ''], { type: 'text/x-python' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
 }
 
 function initCodeEditor(hwId, qId) {
@@ -70,7 +53,7 @@ function initCodeEditor(hwId, qId) {
                 <span class="code-editor-dot" style="background:#ff5f57;"></span>
                 <span class="code-editor-dot" style="background:#febc2e;"></span>
                 <span class="code-editor-dot" style="background:#28c840;"></span>
-                <span class="code-editor-filename">hw${hwId}q${qId + 1}.py</span>
+                <span class="code-editor-filename" id="editor-filename-${hwId}-${qId}">hw${getHwNum(hwId)}q${getQNum(hwId, qId)}.py</span>
                 <span class="code-editor-lang">Python</span>
             </div>
             <div class="code-editor-body">
@@ -93,7 +76,7 @@ function initCodeEditor(hwId, qId) {
     let resetDebounce = null;
     function syncState() {
         state[hwId].questions[qId].code = textarea.value;
-        state[hwId].questions[qId].codeName = `hw${hwId}q${qId + 1}.py`;
+        state[hwId].questions[qId].codeName = `hw${getHwNum(hwId)}q${getQNum(hwId, qId)}.py`;
         // Debounced reset of test results when code changes
         clearTimeout(resetDebounce);
         resetDebounce = setTimeout(() => resetTestResults(hwId, qId), 500);
@@ -156,26 +139,102 @@ function initWorker() {
 // ─── LOCALSTORAGE PERSISTENCE ────────────────────────────────────────────────
 
 let saveDebounce = null;
-function renameTab(hwId) {
-    const newName = prompt("Enter new name for homework tab:", state[hwId]?.name || `HW${hwId}`);
-    if (newName && newName.trim() !== "") {
-        state[hwId].name = newName.trim();
-        const textSpan = document.getElementById(`tab-${hwId}-text`);
-        if (textSpan) textSpan.innerText = state[hwId].name;
-        saveState();
+
+// Synchronous save for when we need to persist state immediately (before reload, etc.)
+function saveStateSync() {
+    clearTimeout(saveDebounce);
+    try {
+        const data = { tabCount, currentTabId, state };
+        localStorage.setItem('pyTesterState', JSON.stringify(data));
+        console.log('[Storage] State saved (sync)');
+    } catch (e) {
+        console.warn('[Storage] Failed to save state:', e);
     }
+}
+
+function startInlineEdit(spanEl, prefix, currentVal, onCommit) {
+    if (spanEl.querySelector('input')) return; // already editing
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentVal;
+    input.style.cssText = 'width: 3ch; border: none; border-bottom: 2px solid currentColor; background: transparent; color: inherit; font: inherit; padding: 0; margin: 0; outline: none; text-align: center;';
+    // Dynamically resize to fit content
+    const resize = () => { input.style.width = Math.max(2, input.value.length + 1) + 'ch'; };
+    input.addEventListener('input', resize);
+
+    const commit = () => {
+        const val = input.value.trim();
+        if (val !== '' && val !== String(currentVal)) {
+            onCommit(val);
+        }
+        spanEl.textContent = `${prefix}${(val !== '' ? val : currentVal)}`;
+    };
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') { e.preventDefault(); spanEl.textContent = `${prefix}${currentVal}`; }
+        e.stopPropagation();
+    });
+    input.addEventListener('blur', commit);
+    input.addEventListener('click', (e) => e.stopPropagation());
+
+    spanEl.textContent = prefix;
+    spanEl.appendChild(input);
+    input.focus();
+    input.select();
+    resize();
+}
+
+function renameTab(hwId) {
+    const spanEl = document.getElementById(`tab-${hwId}-text`);
+    if (!spanEl) return;
+    startInlineEdit(spanEl, 'HW', getHwNum(hwId), (newNum) => {
+        state[hwId].hwNum = newNum;
+        for (const qIdStr of Object.keys(state[hwId].questions)) {
+            refreshQuestionLabels(hwId, parseInt(qIdStr));
+        }
+        saveStateSync();
+    });
 }
 
 function renameQuestion(hwId, qId) {
-    const newName = prompt("Enter new name for question tab:", state[hwId]?.questions?.[qId]?.name || `Q${qId + 1}`);
-    if (newName && newName.trim() !== "") {
-        state[hwId].questions[qId].name = newName.trim();
-        const textSpan = document.getElementById(`q-tab-${hwId}-${qId}-text`);
-        if (textSpan) textSpan.innerText = state[hwId].questions[qId].name;
-        saveState();
-    }
+    const spanEl = document.getElementById(`q-tab-${hwId}-${qId}-text`);
+    if (!spanEl) return;
+    startInlineEdit(spanEl, 'Q', getQNum(hwId, qId), (newNum) => {
+        state[hwId].questions[qId].qNum = newNum;
+        refreshQuestionLabels(hwId, qId);
+        saveStateSync();
+    });
 }
 
+function refreshQuestionLabels(hwId, qId) {
+    const h = getHwNum(hwId);
+    const q = getQNum(hwId, qId);
+    // Code editor header subtitle
+    const subtitle = document.getElementById(`code-subtitle-${hwId}-${qId}`);
+    if (subtitle) subtitle.textContent = `HW${h} · Q${q}`;
+    // Editor filename
+    const fname = document.getElementById(`editor-filename-${hwId}-${qId}`);
+    if (fname) fname.textContent = `hw${h}q${q}.py`;
+    // Execute button
+    const execBtn = document.getElementById(`run-button-${hwId}-${qId}`);
+    if (execBtn) {
+        execBtn.innerHTML = `<i class="bi bi-play-fill me-2 fs-5"></i> Execute Q${q} Tests`;
+    }
+    // Test case hints and diff modal titles
+    for (let t = 1; t <= testCasesCount; t++) {
+        const inputHint = document.getElementById(`input-hint-${hwId}-${qId}-${t}`);
+        if (inputHint) inputHint.textContent = `hw${h}q${q}in${t}`;
+        const expectedHint = document.getElementById(`expected-hint-${hwId}-${qId}-${t}`);
+        if (expectedHint) expectedHint.textContent = `hw${h}q${q}out${t}`;
+        const diffTitle = document.getElementById(`diff-title-${hwId}-${qId}-${t}`);
+        if (diffTitle) diffTitle.textContent = `Diff for HW${h} · Q${q} - Test Case ${t}`;
+    }
+    // Update codeName in state
+    if (state[hwId]?.questions?.[qId]?.codeName) {
+        state[hwId].questions[qId].codeName = `hw${h}q${q}.py`;
+    }
+}
 function saveState() {
     clearTimeout(saveDebounce);
     saveDebounce = setTimeout(() => {
@@ -209,18 +268,18 @@ function loadState() {
             const hwId = parseInt(hwIdStr);
             const hw = data.state[hwId];
 
-            state[hwId] = { name: hw.name || `HW${hwId}`, questionCount: hw.questionCount || 0, questions: {} };
-            renderTabLink(hwId, state[hwId].name);
+            state[hwId] = { hwNum: hw.hwNum, questionCount: hw.questionCount || 0, questions: {} };
+            renderTabLink(hwId, `HW${getHwNum(hwId)}`);
             renderTabContent(hwId);
 
             for (const qIdStr of Object.keys(hw.questions)) {
                 const qId = parseInt(qIdStr);
                 const q = hw.questions[qId];
-                const qName = `Q${qId + 1}`;
+                const qName = `Q${q.qNum ?? (qId + 1)}`;
 
                 // Initialize question state with saved data
                 state[hwId].questions[qId] = {
-                    name: q.name || qName,
+                    qNum: q.qNum,
                     code: q.code || null,
                     codeName: q.codeName || null,
                     codeMode: q.codeMode || 'editor',
@@ -235,7 +294,7 @@ function loadState() {
                     };
                 }
 
-                renderQuestionTabLink(hwId, qId, state[hwId].questions[qId].name);
+                renderQuestionTabLink(hwId, qId, qName);
                 renderQuestionContent(hwId, qId);
                 setupDragAndDropForQuestion(hwId, qId);
 
@@ -344,7 +403,7 @@ function addNewTab(forceHwId = null) {
     if (hwId >= tabCount) tabCount = hwId + 1;
     const tabName = `HW${hwId}`;
 
-    state[hwId] = { name: tabName, questionCount: 0, questions: {} };
+    state[hwId] = { hwNum: hwId, questionCount: 0, questions: {} };
 
     renderTabLink(hwId, tabName);
     renderTabContent(hwId);
@@ -369,10 +428,10 @@ function renderTabLink(hwId, tabName) {
     li.id = `tab-${hwId}-li`;
 
     li.innerHTML = `
-        <button class="nav-link pe-4 d-flex align-items-center" id="tab-${hwId}-link" data-bs-toggle="tab" data-bs-target="#tab-${hwId}-pane" type="button" role="tab" aria-controls="tab-${hwId}-pane" aria-selected="false">
+        <button class="nav-link pe-5 d-flex align-items-center" id="tab-${hwId}-link" data-bs-toggle="tab" data-bs-target="#tab-${hwId}-pane" type="button" role="tab" aria-controls="tab-${hwId}-pane" aria-selected="false">
             <i class="bi bi-folder2-open me-2"></i>
             <span id="tab-${hwId}-text">${tabName}</span>
-            <i class="bi bi-pencil-square ms-2 opacity-50" style="font-size: 0.85rem; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.classList.remove('opacity-50')" onmouseout="this.classList.add('opacity-50')" onclick="event.stopPropagation(); renameTab(${hwId})" title="Rename Homework"></i>
+            <i class="bi bi-pencil-square ms-2 opacity-50" style="font-size: 0.75rem; cursor: pointer;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=''" onclick="event.stopPropagation(); renameTab(${hwId})" title="Change HW number"></i>
         </button>
         <span class="tab-close-btn" onclick="event.stopPropagation(); deleteTab(${hwId})" title="Close Tab">&times;</span>
     `;
@@ -429,7 +488,7 @@ function deleteTab(hwId) {
         alert("Cannot delete the last homework tab.");
         return;
     }
-    if (!confirm(`Delete HW${hwId} and all its questions? This cannot be undone.`)) return;
+
 
     // Remove DOM
     const li = document.getElementById(`tab-${hwId}-li`);
@@ -466,7 +525,7 @@ function addQuestion(hwId, forceQId = null) {
     if (qId >= state[hwId].questionCount) state[hwId].questionCount = qId + 1;
     const qName = `Q${qId + 1}`;
 
-    state[hwId].questions[qId] = { name: qName, code: null, codeName: null, codeMode: 'editor', tests: {} };
+    state[hwId].questions[qId] = { qNum: qId + 1, code: null, codeName: null, codeMode: 'editor', tests: {} };
     for (let t = 1; t <= testCasesCount; t++) {
         state[hwId].questions[qId].tests[t] = { input: null, inputName: null, expected: null, expectedName: null };
     }
@@ -489,13 +548,13 @@ function renderQuestionTabLink(hwId, qId, qName) {
     li.id = `q-tab-${hwId}-${qId}-li`;
 
     const isFirstQ = qTabsContainer.querySelectorAll('.nav-link.subtab-link').length === 0;
-    const activeClass = isFirstQ ? 'nav-link subtab-link pe-4 active' : 'nav-link subtab-link pe-4';
+    const activeClass = isFirstQ ? 'nav-link subtab-link pe-5 active' : 'nav-link subtab-link pe-5';
 
     li.innerHTML = `
         <button class="${activeClass} d-flex align-items-center" id="q-tab-${hwId}-${qId}-link" data-bs-toggle="pill" data-bs-target="#q-pane-${hwId}-${qId}" type="button" role="tab">
             <i class="bi bi-question-circle me-1"></i>
             <span id="q-tab-${hwId}-${qId}-text">${qName}</span>
-            <i class="bi bi-pencil-square ms-2 opacity-50" style="font-size: 0.85rem; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.classList.remove('opacity-50')" onmouseout="this.classList.add('opacity-50')" onclick="event.stopPropagation(); renameQuestion(${hwId}, ${qId})" title="Rename Question"></i>
+            <i class="bi bi-pencil-square ms-2 opacity-50" style="font-size: 0.75rem; cursor: pointer;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=''" onclick="event.stopPropagation(); renameQuestion(${hwId}, ${qId})" title="Change Q number"></i>
         </button>
         <span class="subtab-close-btn" onclick="event.stopPropagation(); deleteQuestion(${hwId}, ${qId})" title="Close Question">&times;</span>
     `;
@@ -509,7 +568,6 @@ function deleteQuestion(hwId, qId) {
         alert("Cannot delete the last question. Delete the homework tab instead.");
         return;
     }
-    if (!confirm(`Delete Q${qId + 1}? This cannot be undone.`)) return;
 
     // Remove modals
     for (let t = 1; t <= testCasesCount; t++) {
@@ -557,7 +615,7 @@ function renderQuestionContent(hwId, qId) {
                             </div>
                             <div>
                                 <h5 class="card-title mb-0 fw-bold">Python Code</h5>
-                                <small class="text-white text-opacity-75">HW${hwId} · Q${qId + 1}</small>
+                                <small class="text-white text-opacity-75" id="code-subtitle-${hwId}-${qId}">HW${getHwNum(hwId)} · Q${getQNum(hwId, qId)}</small>
                             </div>
                         </div>
                         <div class="btn-group" role="group">
@@ -566,9 +624,6 @@ function renderQuestionContent(hwId, qId) {
                             </button>
                             <button type="button" class="btn btn-sm btn-light fw-semibold active" id="code-mode-editor-${hwId}-${qId}" onclick="switchCodeMode('editor', ${hwId}, ${qId})">
                                 <i class="bi bi-code-slash me-1"></i> Write Code
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-light fw-semibold border-start border-start-white border-opacity-25" id="code-mode-download-${hwId}-${qId}" onclick="downloadCode(${hwId}, ${qId})" title="Download .py file">
-                                <i class="bi bi-download"></i>
                             </button>
                         </div>
                     </div>
@@ -612,13 +667,13 @@ function renderQuestionContent(hwId, qId) {
                     <div class="col-md-6">
                         <input type="file" id="file-input-${hwId}-${qId}-${t}" accept=".txt" style="display:none;" onchange="handleFileInput(this, 'input', ${hwId}, ${t}, ${qId})">
                             <div id="input-drop-area-${hwId}-${qId}-${t}" class="drop-area p-3 text-secondary h-100 small" onclick="document.getElementById('file-input-${hwId}-${qId}-${t}').click()">
-                                <div><i class="bi bi-file-earmark-text fs-4 mb-1 d-block"></i> Input File<br><code class="text-muted" style="font-size: 0.7rem;">hw${hwId}q${qId + 1}in${t}</code></div>
+                                <div><i class="bi bi-file-earmark-text fs-4 mb-1 d-block"></i> Input File<br><code class="text-muted" style="font-size: 0.7rem;" id="input-hint-${hwId}-${qId}-${t}">hw${getHwNum(hwId)}q${getQNum(hwId, qId)}in${t}</code></div>
                             </div>
                     </div>
                     <div class="col-md-6">
                         <input type="file" id="file-expected-${hwId}-${qId}-${t}" accept=".txt" style="display:none;" onchange="handleFileInput(this, 'expected', ${hwId}, ${t}, ${qId})">
                             <div id="expected-drop-area-${hwId}-${qId}-${t}" class="drop-area p-3 text-secondary h-100 small" onclick="document.getElementById('file-expected-${hwId}-${qId}-${t}').click()">
-                                <div><i class="bi bi-file-earmark-check fs-4 mb-1 d-block"></i> Expected File<br><code class="text-muted" style="font-size: 0.7rem;">hw${hwId}q${qId + 1}out${t}</code></div>
+                                <div><i class="bi bi-file-earmark-check fs-4 mb-1 d-block"></i> Expected File<br><code class="text-muted" style="font-size: 0.7rem;" id="expected-hint-${hwId}-${qId}-${t}">hw${getHwNum(hwId)}q${getQNum(hwId, qId)}out${t}</code></div>
                             </div>
                     </div>
                 </div>
@@ -647,7 +702,7 @@ function renderQuestionContent(hwId, qId) {
                     <div class="modal-header bg-white border-bottom position-sticky top-0 z-1 py-3 px-4">
                         <h5 class="modal-title text-primary fw-bold d-flex align-items-center">
                             <i class="bi bi-distribute-vertical fs-4 me-2 bg-primary bg-opacity-10 rounded p-2"></i>
-                            Diff for HW${hwId} · Q${qId + 1} - Test Case ${t}
+                            <span id="diff-title-${hwId}-${qId}-${t}">Diff for HW${getHwNum(hwId)} · Q${getQNum(hwId, qId)} - Test Case ${t}</span>
                         </h5>
                         <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
@@ -674,7 +729,7 @@ function renderQuestionContent(hwId, qId) {
                     <i class="bi bi-trash3-fill me-2"></i> Clear All Files
                 </button>
                 <button id="run-button-${hwId}-${qId}" class="btn btn-primary btn-lg shadow-lg px-5 py-3 fw-bold text-uppercase pointer-events-auto" style="letter-spacing: 1px; border-radius: 50px;">
-                    <i class="bi bi-play-fill me-2 fs-5"></i> Execute Q${qId + 1} Tests
+                    <i class="bi bi-play-fill me-2 fs-5"></i> Execute Q${getQNum(hwId, qId)} Tests
                 </button>
             </div>
         </div>
@@ -1256,7 +1311,7 @@ function removeFile(e, type, hwId, qId, t = null) {
         dropArea.className = "drop-area p-3 text-secondary h-100 small";
         let icon = type === 'input' ? 'bi-file-earmark-text' : 'bi-file-earmark-check';
         let txt = type === 'input' ? 'Input File' : 'Expected File';
-        let hint = type === 'input' ? `hw${hwId}q${qId + 1}in${t}` : `hw${hwId}q${qId + 1}out${t}`;
+        let hint = type === 'input' ? `hw${getHwNum(hwId)}q${getQNum(hwId, qId)}in${t}` : `hw${getHwNum(hwId)}q${getQNum(hwId, qId)}out${t}`;
 
         dropArea.innerHTML = `<div><i class="bi ${icon} fs-4 mb-1 d-block"></i> ${txt}<br><code class="text-muted" style="font-size: 0.7rem;">${hint}</code></div>`;
         dropArea.onclick = () => document.getElementById(`file-${type}-${hwId}-${qId}-${t}`).click();
@@ -1316,7 +1371,7 @@ async function runTestsForQuestion(hwId, qId) {
     const q = state[hwId].questions[qId];
 
     if (!q.code) {
-        alert(`Please upload a Python code file for HW${hwId} Q${qId + 1} first.`);
+        alert(`Please upload a Python code file for HW${getHwNum(hwId)} Q${getQNum(hwId, qId)} first.`);
         return;
     }
 
