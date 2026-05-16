@@ -946,7 +946,7 @@ async function parseAndDistributeFiles(fileEntries) {
     const matched = []; // { hw, q, type, test, fileIndex, fileName, content, score }
 
     for (let hw = 0; hw <= maxHw; hw++) {
-        for (let q = 1; q <= maxQ; q++) {
+        for (let q = 0; q <= maxQ; q++) {
             for (let t = 1; t <= testCasesCount; t++) {
                 // Search for input file: "hw{X}q{Y}in{Z}"
                 const inputQuery = `hw${hw}q${q}in${t}`;
@@ -1012,7 +1012,7 @@ async function parseAndDistributeFiles(fileEntries) {
     for (const [hw, qSet] of hwQPairs) {
         ensureTabExists(hw);
         for (const q of qSet) {
-            ensureQuestionExists(hw, q - 1);
+            ensureQuestionExistsByNum(hw, q);
         }
     }
 
@@ -1022,7 +1022,7 @@ async function parseAndDistributeFiles(fileEntries) {
 
     for (const m of matched) {
         const hwId = m.hw;
-        const qId = m.q - 1;
+        const qId = findQIdByDisplayNum(hwId, m.q);
         const t = m.test;
 
         if (!state[hwId] || !state[hwId].questions[qId]) continue;
@@ -1037,7 +1037,7 @@ async function parseAndDistributeFiles(fileEntries) {
     // Deferred UI update to avoid Bootstrap transition interference
     setTimeout(() => {
         for (const m of uiUpdates) {
-            updateFileUI(m.type, m.hw, m.q - 1, m.test, m.fileName);
+            updateFileUI(m.type, m.hw, findQIdByDisplayNum(m.hw, m.q), m.test, m.fileName);
         }
         console.log(`[Orama] UI updated for ${uiUpdates.length} slots`);
     }, 50);
@@ -1045,7 +1045,7 @@ async function parseAndDistributeFiles(fileEntries) {
     // Switch to first matched tab
     const firstHw = matched[0].hw;
     switchTab(firstHw);
-    const firstQ = matched[0].q - 1;
+    const firstQ = findQIdByDisplayNum(firstHw, matched[0].q);
     switchQuestion(firstHw, firstQ);
 
     return filledCount;
@@ -1074,13 +1074,13 @@ function regexFallback(fileEntries) {
     }
     for (const [hw, qSet] of hwQPairs) {
         ensureTabExists(hw);
-        for (const q of qSet) ensureQuestionExists(hw, q - 1);
+        for (const q of qSet) ensureQuestionExistsByNum(hw, q);
     }
 
     let filledCount = 0;
     const uiUpdates = [];
     for (const p of parsed) {
-        const qId = p.q - 1, t = p.test;
+        const qId = findQIdByDisplayNum(p.hw, p.q), t = p.test;
         if (!state[p.hw]?.questions[qId]) continue;
         if (t < 1 || t > testCasesCount) continue;
         state[p.hw].questions[qId].tests[t][p.type] = p.content;
@@ -1089,12 +1089,12 @@ function regexFallback(fileEntries) {
         uiUpdates.push(p);
     }
     setTimeout(() => {
-        for (const p of uiUpdates) updateFileUI(p.type, p.hw, p.q - 1, p.test, p.name);
+        for (const p of uiUpdates) updateFileUI(p.type, p.hw, findQIdByDisplayNum(p.hw, p.q), p.test, p.name);
     }, 50);
 
     if (parsed.length > 0) {
         switchTab(parsed[0].hw);
-        switchQuestion(parsed[0].hw, parsed[0].q - 1);
+        switchQuestion(parsed[0].hw, findQIdByDisplayNum(parsed[0].hw, parsed[0].q));
     }
     return filledCount;
 }
@@ -1109,6 +1109,31 @@ function ensureQuestionExists(hwId, qId) {
     if (!state[hwId].questions[qId]) {
         addQuestion(hwId, qId);
     }
+}
+
+// Find internal qId by display Q number, or return qNum itself as qId if not found
+function findQIdByDisplayNum(hwId, qNum) {
+    if (!state[hwId]) return qNum;
+    for (const [qIdStr, qState] of Object.entries(state[hwId].questions)) {
+        if (String(getQNum(hwId, parseInt(qIdStr))) === String(qNum)) {
+            return parseInt(qIdStr);
+        }
+    }
+    return qNum; // fallback
+}
+
+// Ensure a question exists for a given display Q number
+function ensureQuestionExistsByNum(hwId, qNum) {
+    // Check if any existing question already has this display number
+    const existingQId = findQIdByDisplayNum(hwId, qNum);
+    if (state[hwId].questions[existingQId]) return;
+    // Create new question and set its display number
+    const newQId = addQuestion(hwId);
+    state[hwId].questions[newQId].qNum = qNum;
+    // Update the tab label
+    const qText = document.getElementById(`q-tab-${hwId}-${newQId}-text`);
+    if (qText) qText.textContent = `Q${qNum}`;
+    refreshQuestionLabels(hwId, newQId);
 }
 
 function updateFileUI(type, hwId, qId, t, name) {
@@ -1331,7 +1356,6 @@ function removeFile(e, type, hwId, qId, t = null) {
 }
 
 function clearQuestion(hwId, qId) {
-    if (!confirm("Are you sure you want to clear all uploaded files for this question?")) return;
 
     if (state[hwId].questions[qId].code) {
         removeFile({ stopPropagation: () => { } }, 'code', hwId, qId);
