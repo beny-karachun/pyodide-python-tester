@@ -40,6 +40,7 @@ const TRANSLATIONS = {
         'ui.diff': 'Diff',
         'ui.noOutput': 'No output',
         'ui.addQuestion': 'Add Question',
+        'ui.downloadCode': 'Download Code',
         'footer.disclaimer': 'This website is an independent student project and is not affiliated with, endorsed by, or associated with the Technion \u2013 Israel Institute of Technology.',
     },
     he: {
@@ -81,6 +82,7 @@ const TRANSLATIONS = {
         'ui.diff': 'שונה',
         'ui.noOutput': 'אין פלט',
         'ui.addQuestion': 'הוסף שאלה',
+        'ui.downloadCode': 'הורד קוד',
         'footer.disclaimer': 'אתר זה הוא פרויקט סטודנטיאלי עצמאי ואינו משויך לטכניון – מכון טכנולוגי לישראל, אינו מאושר או קשור אליו.',
     }
 };

@@ -121,6 +121,42 @@ function initCodeEditor(hwId, qId) {
     editorInstances[key] = true;
 }
 
+function downloadCode(hwId, qId) {
+    const qState = state[hwId]?.questions?.[qId];
+    if (!qState) {
+        alert("Question not found.");
+        return;
+    }
+
+    let codeContent = qState.code;
+    if (qState.codeMode === 'editor') {
+        const textarea = document.getElementById(`code-textarea-${hwId}-${qId}`);
+        if (textarea) {
+            codeContent = textarea.value;
+        }
+    }
+
+    if (!codeContent || codeContent.trim() === '') {
+        const lang = window.currentLang || 'en';
+        alert(lang === 'he' ? "אין קוד להורדה." : "There is no code to download.");
+        return;
+    }
+
+    const h = getHwNum(hwId);
+    const q = getQNum(hwId, qId);
+    const filename = qState.codeName || `hw${h}q${q}.py`;
+
+    const blob = new Blob([codeContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
 function initWorker() {
     worker = new Worker("pyodide_worker.js");
     worker.onmessage = (event) => {
@@ -618,13 +654,18 @@ function renderQuestionContent(hwId, qId) {
                                 <small class="text-white text-opacity-75" id="code-subtitle-${hwId}-${qId}">HW${getHwNum(hwId)} · Q${getQNum(hwId, qId)}</small>
                             </div>
                         </div>
-                        <div class="btn-group" role="group">
-                            <button type="button" class="btn btn-sm btn-outline-light fw-semibold" id="code-mode-upload-${hwId}-${qId}" onclick="switchCodeMode('upload', ${hwId}, ${qId})">
-                                <i class="bi bi-cloud-arrow-up me-1"></i> Upload File
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-light fw-semibold d-flex align-items-center" onclick="downloadCode(${hwId}, ${qId})">
+                                <i class="bi bi-download me-1"></i> <span data-i18n="ui.downloadCode">Download Code</span>
                             </button>
-                            <button type="button" class="btn btn-sm btn-light fw-semibold active" id="code-mode-editor-${hwId}-${qId}" onclick="switchCodeMode('editor', ${hwId}, ${qId})">
-                                <i class="bi bi-code-slash me-1"></i> Write Code
-                            </button>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-light fw-semibold" id="code-mode-upload-${hwId}-${qId}" onclick="switchCodeMode('upload', ${hwId}, ${qId})">
+                                    <i class="bi bi-cloud-arrow-up me-1"></i> Upload File
+                                </button>
+                                <button type="button" class="btn btn-sm btn-light fw-semibold active" id="code-mode-editor-${hwId}-${qId}" onclick="switchCodeMode('editor', ${hwId}, ${qId})">
+                                    <i class="bi bi-code-slash me-1"></i> Write Code
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <!-- Upload mode (hidden by default) -->
@@ -740,6 +781,11 @@ function renderQuestionContent(hwId, qId) {
     modalsContainer.insertAdjacentHTML('beforeend', modalsHtml);
     // Auto-init the code editor since Write Code is the default mode
     initCodeEditor(hwId, qId);
+
+    // Translate newly rendered content
+    if (typeof applyLanguage === 'function') {
+        applyLanguage(currentLang);
+    }
 }
 
 function switchQuestion(hwId, qId) {
